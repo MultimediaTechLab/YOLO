@@ -1,0 +1,133 @@
+name: v9-t
+
+anchor:
+  reg_max: 16
+
+model:
+  backbone:
+    - Conv:
+        args: {out_channels: 16, kernel_size: 3, stride: 2}
+        source: 0
+    - Conv:
+        args: {out_channels: 32, kernel_size: 3, stride: 2}
+    - ELAN:
+        args: {out_channels: 32, part_channels: 32}
+
+    - AConv:
+        args: {out_channels: 64}
+    - RepNCSPELAN:
+        args:
+            out_channels: 64
+            part_channels: 64
+            csp_args: {repeat_num: 3}
+        tags: B3
+
+    - AConv:
+        args: {out_channels: 96}
+    - RepNCSPELAN:
+        args:
+            out_channels: 96
+            part_channels: 96
+            csp_args: {repeat_num: 3}
+        tags: B4
+
+    - AConv:
+        args: {out_channels: 128}
+    - RepNCSPELAN:
+        args:
+            out_channels: 128
+            part_channels: 128
+            csp_args: {repeat_num: 3}
+        tags: B5
+
+  neck:
+    - SPPELAN:
+        args: {out_channels: 128}
+        tags: N3
+
+    - UpSample:
+        args: {scale_factor: 2, mode: nearest}
+    - Concat:
+        source: [-1, B4]
+    - RepNCSPELAN:
+        args:
+            out_channels: 96
+            part_channels: 96
+            csp_args: {repeat_num: 3}
+        tags: N4
+
+  head:
+    - UpSample:
+        args: {scale_factor: 2, mode: nearest}
+    - Concat:
+        source: [-1, B3]
+
+    - RepNCSPELAN:
+        args:
+            out_channels: 64
+            part_channels: 64
+            csp_args: {repeat_num: 3}
+        tags: P3
+    - AConv:
+        args: {out_channels: 48}
+    - Concat:
+        source: [-1, N4]
+
+    - RepNCSPELAN:
+        args:
+            out_channels: 96
+            part_channels: 96
+            csp_args: {repeat_num: 3}
+        tags: P4
+    - AConv:
+        args: {out_channels: 64}
+    - Concat:
+        source: [-1, N3]
+
+    - RepNCSPELAN:
+        args:
+            out_channels: 128
+            part_channels: 128
+            csp_args: {repeat_num: 3}
+        tags: P5
+
+  detection:
+    - MultiheadDetection:
+        source: [P3, P4, P5]
+        tags: Main
+        output: True
+
+  auxiliary:
+    - SPPELAN:
+        source: B5
+        args: {out_channels: 128}
+        tags: A5
+
+    - UpSample:
+        args: {scale_factor: 2, mode: nearest}
+    - Concat:
+        source: [-1, B4]
+
+    - RepNCSPELAN:
+        args:
+            out_channels: 96
+            part_channels: 96
+            csp_args: {repeat_num: 3}
+        tags: A4
+
+    - UpSample:
+        args: {scale_factor: 2, mode: nearest}
+    - Concat:
+        source: [-1, B3]
+
+    - RepNCSPELAN:
+        args:
+            out_channels: 64
+            part_channels: 64
+            csp_args: {repeat_num: 3}
+        tags: A3
+
+    - MultiheadDetection:
+        source: [A3, A4, A5]
+        tags: AUX
+        output: True
