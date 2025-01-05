@@ -81,47 +81,95 @@ class YoloDataset(Dataset):
             list: A list of tuples, each containing the path to an image file and its associated segmentation as a tensor.
         """
         images_path = dataset_path / "images" / phase_name
+
         labels_path, data_type = locate_label_paths(dataset_path, phase_name)
-        images_list = sorted([p.name for p in Path(images_path).iterdir() if p.is_file()])
-        if data_type == "json":
-            annotations_index, image_info_dict = create_image_metadata(labels_path)
 
-        data = []
-        valid_inputs = 0
-        for image_name in track(images_list, description="Filtering data"):
-            if not image_name.lower().endswith((".jpg", ".jpeg", ".png")):
-                continue
-            image_id = Path(image_name).stem
+        if data_type == 'kwcoco':
+            """
+            More robust data handling that only depends on paths within the
+            specified manifest file.
 
-            if data_type == "json":
-                image_info = image_info_dict.get(image_id, None)
-                if image_info is None:
-                    continue
-                annotations = annotations_index.get(image_info["id"], [])
-                image_seg_annotations = scale_segmentation(annotations, image_info)
-            elif data_type == "txt":
-                label_path = labels_path / f"{image_id}.txt"
-                if not label_path.is_file():
-                    continue
-                with open(label_path, "r") as file:
-                    image_seg_annotations = [list(map(float, line.strip().split())) for line in file]
-            else:
-                image_seg_annotations = []
+            Principles:
 
-            labels = self.load_valid_labels(image_id, image_seg_annotations)
+                * Dont glob for the images, let the dataset tell you where they are.
 
-            img_path = images_path / image_name
+                * A Dataset should be referenced as a single URI to a manifest.
+                  The manifest should either contain relevant data or point to
+                  paths for everything.
+            """
+            import kwcoco
+            coco_dset = kwcoco.CocoDataset(labels_path)
+
+            total_images = coco_dset.n_images
+
             if sort_image:
-                with Image.open(img_path) as img:
-                    width, height = img.size
-            else:
-                width, height = 0, 1
-            data.append((img_path, labels, width / height))
-            valid_inputs += 1
+                # Ensure all images have populated sizes
+                coco_dset._ensure_imgsize()
+
+            ALLOW_EMPTY_IMAGES = 0
+
+            # Build the expected output
+            data = []
+            valid_inputs = 0
+            for coco_img in coco_dset.images().coco_images_iter():
+                image_info = coco_img.img
+                img_path = coco_img.primary_image_filepath()
+
+                if sort_image:
+                    width, height = coco_img['width'], coco_img['height']
+                else:
+                    width, height = 0, 1
+
+                annotations = coco_img.annots().objs
+                if ALLOW_EMPTY_IMAGES or len(annotations):
+                    image_seg_annotations = scale_segmentation(annotations, image_info)
+                    labels = self.load_valid_labels(None, image_seg_annotations)
+
+                    data.append((img_path, labels, width / height))
+                    valid_inputs += 1
+
+        else:
+            images_list = sorted([p.name for p in Path(images_path).iterdir() if p.is_file()])
+            if data_type == "json":
+                annotations_index, image_info_dict = create_image_metadata(labels_path)
+
+            data = []
+            valid_inputs = 0
+            for image_name in track(images_list, description="Filtering data"):
+                if not image_name.lower().endswith((".jpg", ".jpeg", ".png")):
+                    continue
+                image_id = Path(image_name).stem
+
+                if data_type == "json":
+                    image_info = image_info_dict.get(image_id, None)
+                    if image_info is None:
+                        continue
+                    annotations = annotations_index.get(image_info["id"], [])
+                    image_seg_annotations = scale_segmentation(annotations, image_info)
+                elif data_type == "txt":
+                    label_path = labels_path / f"{image_id}.txt"
+                    if not label_path.is_file():
+                        continue
+                    with open(label_path, "r") as file:
+                        image_seg_annotations = [list(map(float, line.strip().split())) for line in file]
+                else:
+                    image_seg_annotations = []
+
+                labels = self.load_valid_labels(image_id, image_seg_annotations)
+
+                img_path = images_path / image_name
+                if sort_image:
+                    with Image.open(img_path) as img:
+                        width, height = img.size
+                else:
+                    width, height = 0, 1
+                data.append((img_path, labels, width / height))
+                valid_inputs += 1
+                total_images = len(images_list)
 
         data = sorted(data, key=lambda x: x[2], reverse=True)
 
-        logger.info(f"Recorded {valid_inputs}/{len(images_list)} valid inputs")
+        logger.info(f"Recorded {valid_inputs}/{total_images} valid inputs")
         return data
 
     def load_valid_labels(self, label_path: str, seg_data_one_img: list) -> Union[Tensor, None]:
