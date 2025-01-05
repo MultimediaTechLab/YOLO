@@ -36,7 +36,10 @@ class YoloDataset(Dataset):
         transforms = [eval(aug)(prob) for aug, prob in augment_cfg.items()]
         self.transform = AugmentationComposer(transforms, self.image_size, self.base_size)
         self.transform.get_more_data = self.get_more_data
-        self.img_paths, self.bboxes, self.ratios = tensorlize(self.load_data(Path(dataset_cfg.path), phase_name))
+
+        dataset_path = Path(dataset_cfg.path)
+        data = self.load_data(dataset_path, phase_name)
+        self.img_paths, self.bboxes, self.ratios = tensorlize(data)
 
     def load_data(self, dataset_path: Path, phase_name: str):
         """
