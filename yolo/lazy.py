@@ -4,6 +4,7 @@ from pathlib import Path
 import hydra
 from lightning import Trainer
 
+# FIXME: messing with sys.path is a bad idea. Factor this out.
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
