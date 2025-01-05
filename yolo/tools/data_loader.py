@@ -12,7 +12,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from yolo.config.config import DataConfig, DatasetConfig
-from yolo.tools.data_augmentation import *
+from yolo.tools import data_augmentation
 from yolo.tools.data_augmentation import AugmentationComposer
 from yolo.tools.dataset_preparation import prepare_dataset
 from yolo.utils.dataset_utils import (
@@ -33,13 +33,10 @@ class YoloDataset(Dataset):
         self.dynamic_shape = getattr(data_cfg, "dynamic_shape", False)
         self.base_size = mean(self.image_size)
 
-        transforms = [eval(aug)(prob) for aug, prob in augment_cfg.items()]
+        transforms = [getattr(data_augmentation, aug)(prob) for aug, prob in augment_cfg.items()]
         self.transform = AugmentationComposer(transforms, self.image_size, self.base_size)
         self.transform.get_more_data = self.get_more_data
-
-        dataset_path = Path(dataset_cfg.path)
-        data = self.load_data(dataset_path, phase_name)
-        self.img_paths, self.bboxes, self.ratios = tensorlize(data)
+        self.img_paths, self.bboxes, self.ratios = tensorlize(self.load_data(Path(dataset_cfg.path), phase_name))
 
     def load_data(self, dataset_path: Path, phase_name: str):
         """
