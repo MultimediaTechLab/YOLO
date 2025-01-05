@@ -34,6 +34,14 @@ def locate_label_paths(dataset_path: Path, phase_name: Path) -> Tuple[Path, Path
         if txt_files:
             return txt_labels_path, "txt"
 
+    HANDLE_KWCOCO_FILES = 1
+    if HANDLE_KWCOCO_FILES:
+        candidate = dataset_path / phase_name
+        if candidate.is_file():
+            labels_path = dataset_path / phase_name
+            data_type = 'kwcoco'
+            return labels_path, data_type
+
     logger.warning("No labels found in the specified dataset path and phase name.")
     return [], None
 
