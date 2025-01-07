@@ -142,7 +142,7 @@ class YOLO(nn.Module):
             if weights_key not in weights:  #.ckpt
                 weights_key = "model." + model_key
             if weights_key not in weights:  #.pt old
-                weights_key = model_key.removeprefix("model.")
+                weights_key = model_key[6:]
             if weights_key not in weights:
                 error_dict["Not Found"].add(tuple(model_key.split(".")[:-2]))
                 continue
