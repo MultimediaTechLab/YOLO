@@ -1,33 +1,78 @@
-from yolo.config.config import Config, NMSConfig
-from yolo.model.yolo import create_model
-from yolo.tools.data_loader import AugmentationComposer, create_dataloader
-from yolo.tools.drawer import draw_bboxes
-from yolo.tools.solver import TrainModel
-from yolo.utils.bounding_box_utils import Anc2Box, Vec2Box, bbox_nms, create_converter
-from yolo.utils.deploy_utils import FastModelLoader
-from yolo.utils.logging_utils import (
-    ImageLogger,
-    YOLORichModelSummary,
-    YOLORichProgressBar,
-)
-from yolo.utils.model_utils import PostProcess
+"""
+The MIT YOLO rewrite
+"""
 
-all = [
-    "create_model",
-    "Config",
-    "YOLORichProgressBar",
-    "NMSConfig",
-    "YOLORichModelSummary",
-    "validate_log_directory",
-    "draw_bboxes",
-    "Vec2Box",
-    "Anc2Box",
-    "bbox_nms",
-    "create_converter",
-    "AugmentationComposer",
-    "ImageLogger",
-    "create_dataloader",
-    "FastModelLoader",
-    "TrainModel",
-    "PostProcess",
-]
+__autogen__ = """
+mkinit ~/code/YOLO-v9/yolo/__init__.py --nomods --write --lazy-loader
+
+# Check to see how long it takes to run a simple help command
+time python -m yolo.lazy --help
+"""
+
+__submodules__ = {
+    'config.config': ['Config', 'NMSConfig'],
+    'model.yolo': ['create_model'],
+    'tools.data_loader': ['AugmentationComposer', 'create_dataloader'],
+    'tools.drawer': ['draw_bboxes'],
+    'tools.solver': ['TrainModel'],
+    'utils.bounding_box_utils': ['Anc2Box', 'Vec2Box', 'bbox_nms', 'create_converter'],
+    'utils.deploy_utils': ['FastModelLoader'],
+    'utils.logging_utils': [
+        'ImageLogger', 'YOLORichModelSummary',
+        'YOLORichProgressBar',
+        'validate_log_directory'
+    ],
+    'utils.model_utils': ['PostProcess'],
+}
+
+
+import lazy_loader
+
+
+__getattr__, __dir__, __all__ = lazy_loader.attach(
+    __name__,
+    submodules={},
+    submod_attrs={
+        'config.config': [
+            'Config',
+            'NMSConfig',
+        ],
+        'model.yolo': [
+            'create_model',
+        ],
+        'tools.data_loader': [
+            'AugmentationComposer',
+            'create_dataloader',
+        ],
+        'tools.drawer': [
+            'draw_bboxes',
+        ],
+        'tools.solver': [
+            'TrainModel',
+        ],
+        'utils.bounding_box_utils': [
+            'Anc2Box',
+            'Vec2Box',
+            'bbox_nms',
+            'create_converter',
+        ],
+        'utils.deploy_utils': [
+            'FastModelLoader',
+        ],
+        'utils.logging_utils': [
+            'ImageLogger',
+            'YOLORichModelSummary',
+            'YOLORichProgressBar',
+            'validate_log_directory',
+        ],
+        'utils.model_utils': [
+            'PostProcess',
+        ],
+    },
+)
+
+__all__ = ['Anc2Box', 'AugmentationComposer', 'Config', 'FastModelLoader',
+           'ImageLogger', 'NMSConfig', 'PostProcess', 'TrainModel', 'Vec2Box',
+           'YOLORichModelSummary', 'YOLORichProgressBar', 'bbox_nms',
+           'create_converter', 'create_dataloader', 'create_model',
+           'draw_bboxes', 'validate_log_directory']
