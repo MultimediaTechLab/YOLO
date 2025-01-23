@@ -279,9 +279,12 @@ def setup(cfg: Config):
         logger.setLevel(logging.ERROR)
         return progress, loggers, save_path
 
-    progress.append(YOLORichProgressBar())
-    progress.append(YOLORichModelSummary())
-    progress.append(ImageLogger())
+    from yolo.utils.logger import DISABLE_RICH_HANDLER
+    if not DISABLE_RICH_HANDLER:
+        progress.append(YOLORichProgressBar())
+        progress.append(YOLORichModelSummary())
+        progress.append(ImageLogger())
+
     if cfg.use_tensorboard:
         loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
     if cfg.use_wandb:
