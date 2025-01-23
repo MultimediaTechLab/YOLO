@@ -58,6 +58,14 @@ class EMA(Callback):
         pl_module.ema.load_state_dict(self.ema_state_dict)
 
     @no_grad()
+    def on_train_batch_start(self, trainer: "Trainer", pl_module: "LightningModule", *args, **kwargs) -> None:
+        if self.ema_state_dict is None:
+            # If validation sanity checks are disabled, then we need to
+            # initialize the ema state before training starts.
+            self.ema_state_dict = deepcopy(pl_module.model.state_dict())
+            pl_module.ema.load_state_dict(self.ema_state_dict)
+
+    @no_grad()
     def on_train_batch_end(self, trainer: "Trainer", pl_module: "LightningModule", *args, **kwargs) -> None:
         self.step += 1
         decay_factor = self.decay * (1 - exp(-self.step / self.tau))
