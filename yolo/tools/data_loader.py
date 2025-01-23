@@ -205,8 +205,18 @@ class YoloDataset(Dataset):
         bboxes = []
         for seg_data in seg_data_one_img:
             cls = seg_data[0]
-            points = np.array(seg_data[1:]).reshape(-1, 2)
-            valid_points = points[(points >= 0) & (points <= 1)].reshape(-1, 2)
+            # This seems like an incorrect check. Putting my fix inside an if
+            # in case I don't understand why it is this way.
+            FIX_INCORRECT_CHECK = 1
+            if FIX_INCORRECT_CHECK:
+                points = np.array(seg_data[1:]).reshape(-1, 2)
+                # This probably should just be a clamp / clip operation
+                # but I'm keeping it similar to the original
+                flags = (points >= 0).all(axis=1) & (points <= 1).all(axis=1)
+                valid_points = points[flags]
+            else:
+                points = np.array(seg_data[1:]).reshape(-1, 2)
+                valid_points = points[(points >= 0) & (points <= 1)].reshape(-1, 2)
             if valid_points.size > 1:
                 bbox = torch.tensor([cls, *valid_points.min(axis=0), *valid_points.max(axis=0)])
                 bboxes.append(bbox)
