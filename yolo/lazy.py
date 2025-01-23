@@ -3,6 +3,7 @@ from pathlib import Path
 
 import hydra
 from lightning import Trainer
+from omegaconf.dictconfig import DictConfig
 
 # FIXME: messing with sys.path is a bad idea. Factor this out.
 project_root = Path(__file__).resolve().parent.parent
@@ -14,7 +15,7 @@ from yolo.utils.logging_utils import setup
 
 
 @hydra.main(config_path="config", config_name="config", version_base=None)
-def main(cfg: Config):
+def main(cfg: DictConfig):
     callbacks, loggers, save_path = setup(cfg)
 
     trainer = Trainer(
