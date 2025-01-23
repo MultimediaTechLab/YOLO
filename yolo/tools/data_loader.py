@@ -133,7 +133,7 @@ class YoloDataset(Dataset):
                 for anno in annotations:
                     if id_to_idx:
                         anno["category_id"] = id_to_idx[anno["category_id"]]
-                    if anno["iscrowd"]:
+                    if anno.get("iscrowd", False):  # TODO: make configurable
                         continue
                     modified_annotations.append(anno)
                 annotations = modified_annotations
