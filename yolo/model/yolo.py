@@ -32,7 +32,7 @@ class YOLO(nn.Module):
     def build_model(self, model_arch: Dict[str, List[Dict[str, Dict[str, Dict]]]]):
         self.layer_index = {}
         output_dim, layer_idx = [3], 1
-        logger.info(f":tractor: Building YOLO")
+        logger.info(":tractor: Building YOLO")
         for arch_name in model_arch:
             if model_arch[arch_name]:
                 logger.info(f"  :building_construction:  Building {arch_name}")
