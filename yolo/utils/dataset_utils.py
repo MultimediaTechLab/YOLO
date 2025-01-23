@@ -105,12 +105,22 @@ def scale_segmentation(
     if annotations is None:
         return None
 
+    try:
+        import kwimage
+    except ImportError:
+        kwimage = None
+
     seg_array_with_cat = []
     h, w = image_dimensions["height"], image_dimensions["width"]
     for anno in annotations:
         category_id = anno["category_id"]
         if "segmentation" in anno:
-            seg_list = [item for sublist in anno["segmentation"] for item in sublist]
+            if kwimage is None:
+                # original fallback code
+                seg_list = [item for sublist in anno["segmentation"] for item in sublist]
+            else:
+                # Convert to original coco representation
+                seg_list = kwimage.MultiPolygon.coerce(anno["segmentation"]).to_coco('orig')
         elif "bbox" in anno:
             x, y, width, height = anno["bbox"]
             seg_list = [x, y, x + width, y, x + width, y + height, x, y + height]
