@@ -69,6 +69,10 @@ class TrainModel(ValidateModel):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.cfg = cfg
+
+        # TODO: if we defer creating the model until the dataset is loaded, we
+        # can introspect the number of categories and other things to make user
+        # configuration have less interdependencies and thus be more robust.
         self.train_loader = create_dataloader(self.cfg.task.data, self.cfg.dataset, self.cfg.task.task)
 
     def setup(self, stage):
