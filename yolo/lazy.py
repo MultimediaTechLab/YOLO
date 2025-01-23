@@ -17,7 +17,7 @@ def main(cfg: DictConfig):
     from lightning import Trainer
     from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
     trainer = Trainer(
-        accelerator="auto",
+        accelerator=cfg.accelerator,
         max_epochs=getattr(cfg.task, "epoch", None),
         precision="16-mixed",
         callbacks=callbacks,
