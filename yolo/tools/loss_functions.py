@@ -107,6 +107,21 @@ class YOLOLoss:
 
 
 class DualLoss:
+    """
+    Example:
+        >>> import torch
+        >>> from yolo.tools.loss_functions import DualLoss
+        >>> from yolo.utils.bounding_box_utils import Vec2Box
+        >>> from yolo.utils.config_utils import build_config
+        >>> cfg = build_config(overrides=['task=train'])
+        >>> device = 'cpu'
+        >>> vec2box = Vec2Box(model=None, anchor_cfg=cfg.model.anchor, image_size=cfg.image_size, device=device)
+        >>> self = DualLoss(cfg, vec2box)
+        >>> targets = torch.zeros(1, 20, 5, device=device)
+        >>> aux_predicts = [torch.zeros(1, 8400, *cn, device=device) for cn in [(80,), (4, 16), (4,)]]
+        >>> main_predicts = [torch.zeros(1, 8400, *cn, device=device) for cn in [(80,), (4, 16), (4,)]]
+        >>> loss, loss_dict = self(aux_predicts, main_predicts, targets)
+    """
     def __init__(self, cfg: Config, vec2box) -> None:
         loss_cfg = cfg.task.loss
         self.loss = YOLOLoss(loss_cfg, vec2box, class_num=cfg.dataset.class_num, reg_max=cfg.model.anchor.reg_max)
