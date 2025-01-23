@@ -28,6 +28,7 @@ def main(cfg: DictConfig):
         # deterministic=True,
         enable_progress_bar=not getattr(cfg, "quite", False),
         default_root_dir=save_path,
+        num_sanity_val_steps=0,
     )
 
     if cfg.task.task == "train":
