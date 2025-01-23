@@ -36,7 +36,9 @@ class YoloDataset(Dataset):
         transforms = [getattr(data_augmentation, aug)(prob) for aug, prob in augment_cfg.items()]
         self.transform = AugmentationComposer(transforms, self.image_size, self.base_size)
         self.transform.get_more_data = self.get_more_data
-        self.img_paths, self.bboxes, self.ratios = tensorlize(self.load_data(Path(dataset_cfg.path), phase_name))
+
+        data = self.load_data(Path(dataset_cfg.path), phase_name)
+        self.img_paths, self.bboxes, self.ratios = tensorlize(data)
 
     def load_data(self, dataset_path: Path, phase_name: str):
         """
@@ -100,6 +102,9 @@ class YoloDataset(Dataset):
             import kwcoco
             coco_dset = kwcoco.CocoDataset(labels_path)
 
+            from yolo.tools.data_conversion import discretize_categories
+            id_to_idx = discretize_categories(coco_dset.dataset.get("categories", [])) if "categories" in coco_dset.dataset else None
+
             total_images = coco_dset.n_images
 
             if sort_image:
@@ -121,7 +126,20 @@ class YoloDataset(Dataset):
                     width, height = 0, 1
 
                 annotations = coco_img.annots().objs
+
+                # Handle filtering as done in
+                # :func:`dataset_utils.organize_annotations_by_image`
+                modified_annotations = []
+                for anno in annotations:
+                    if id_to_idx:
+                        anno["category_id"] = id_to_idx[anno["category_id"]]
+                    if anno["iscrowd"]:
+                        continue
+                    modified_annotations.append(anno)
+                annotations = modified_annotations
+
                 if ALLOW_EMPTY_IMAGES or len(annotations):
+
                     image_seg_annotations = scale_segmentation(annotations, image_info)
                     labels = self.load_valid_labels(None, image_seg_annotations)
 
