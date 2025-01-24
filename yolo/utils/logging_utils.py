@@ -231,11 +231,91 @@ class ImageLogger(Callback):
         pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
         images = [images[0]]
         step = trainer.current_epoch
+
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
+                # FIXME: not robust to configured image sizes, need to know
+                # that info.
                 logger.log_image("Input Image", images, step=step)
                 logger.log_image("Ground Truth", images, step=step, boxes=[log_bbox(gt_boxes)])
                 logger.log_image("Prediction", images, step=step, boxes=[log_bbox(pred_boxes)])
+
+        # TODO: better config
+        import os
+        LOG_BATCH_VIZ_TO_DISK = bool(os.environ.get('LOG_BATCH_VIZ_TO_DISK', ''))
+        if LOG_BATCH_VIZ_TO_DISK:
+            import einops
+            import kwimage
+
+            # TODO:
+            # get a batter output path
+            import pathlib
+            root_dpath = pathlib.Path(trainer.default_root_dir)
+            out_dpath = root_dpath / 'debug_images' / trainer.state.stage.name
+            out_dpath.mkdir(exist_ok=True, parents=True)
+            epoch = trainer.current_epoch
+
+            for bx in range(len(images)):
+                image_chw = images[bx].data.cpu().numpy()
+                image_hwc = einops.rearrange(image_chw, 'c h w -> h w c')
+                image_hwc = kwimage.ensure_uint255(image_hwc)
+
+                assert bx == 0, 'not handling multiple per batch'
+                true_dets = tensor_to_kwimage(gt_boxes).numpy()
+                pred_dets = tensor_to_kwimage(pred_boxes).numpy()
+                pred_dets = pred_dets.non_max_supress(thresh=0.3)
+                # pred_dets = pred_dets.compress(pred_dets.scores > 0.1)
+
+                raw_canvas = image_hwc.copy()
+                true_canvas = true_dets.draw_on(raw_canvas.copy(), color='green')
+                pred_canvas = pred_dets.draw_on(raw_canvas.copy(), color='blue')
+
+                raw_canvas = kwimage.draw_header_text(raw_canvas, 'raw')
+                true_canvas = kwimage.draw_header_text(true_canvas, f'true, n={len(true_dets)}')
+                pred_canvas = kwimage.draw_header_text(pred_canvas, f'pred, n={len(pred_dets)}')
+                canvas = kwimage.stack_images([
+                    raw_canvas, true_canvas, pred_canvas
+                ], axis=1, pad=3)
+
+                fname = f'img_{epoch:04d}_{batch_idx:04d}.jpg'
+                fpath = out_dpath / fname
+                kwimage.imwrite(fpath, canvas)
+
+
+def tensor_to_kwimage(yolo_annot_tensor):
+    import kwimage
+    class_idxs = yolo_annot_tensor[:, 0].int()
+    boxes = kwimage.Boxes(yolo_annot_tensor[:, 1:5], format='xyxy')
+    dets = kwimage.Detections(
+        boxes=boxes,
+        class_idxs=class_idxs
+    )
+
+    if yolo_annot_tensor.shape[1] > 5:
+        scores = yolo_annot_tensor[:, 5]
+        dets.data['scores'] = scores
+    return dets
+
+
+def wandb_to_kwimage(wand_annots):
+    import numpy as np
+    import kwimage
+    box_list = []
+    class_idxs = []
+    for row in wand_annots['predictions']['box_data']:
+        pos = row['position']
+        class_idx = row['class_id']
+        xyxy = [pos['minX'], pos['minY'], pos['maxX'], pos['maxY']]
+        box_list.append(xyxy)
+        class_idxs.append(class_idx)
+
+    boxes = kwimage.Boxes(np.array(box_list), format='xyxy')
+    dets = kwimage.Detections(
+        boxes=boxes,
+        class_idxs=np.array(class_idxs)
+    )
+    dets = dets.compress(dets.class_idxs > -1)
+    return dets
 
 
 def setup_logger(logger_name, quite=False):
@@ -283,7 +363,8 @@ def setup(cfg: Config):
     if not DISABLE_RICH_HANDLER:
         progress.append(YOLORichProgressBar())
         progress.append(YOLORichModelSummary())
-        progress.append(ImageLogger())
+
+    progress.append(ImageLogger())
 
     if cfg.use_tensorboard:
         loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
