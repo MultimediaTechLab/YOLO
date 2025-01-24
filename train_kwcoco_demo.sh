@@ -27,7 +27,7 @@ VALI_FPATH=$BUNDLE_DPATH/vidshapes_rgb_vali/data.kwcoco.json
 TEST_FPATH=$BUNDLE_DPATH/vidshapes_rgb_test/data.kwcoco.json
 
 # Generate toy datasets using the "kwcoco toydata" tool
-kwcoco toydata vidshapes2-frames10 --dst "$TRAIN_FPATH"
+kwcoco toydata vidshapes32-frames10 --dst "$TRAIN_FPATH"
 kwcoco toydata vidshapes4-frames10 --dst "$VALI_FPATH"
 kwcoco toydata vidshapes2-frames6 --dst "$TEST_FPATH"
 
@@ -86,7 +86,7 @@ echo "$CONFIG_YAML" > "$DATASET_CONFIG_FPATH"
 # This might only work in development mode, otherwise we will get site packages
 # That still might be fine, but we do want to fix this to run anywhere.
 cd "$REPO_DPATH"
-python -m yolo.lazy \
+LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
     task=train \
     dataset=kwcoco-demo \
     use_wandb=False \
@@ -97,6 +97,47 @@ python -m yolo.lazy \
     accelerator=auto \
     task.data.batch_size=2 \
     "image_size=[224,224]" \
-    task.optimizer.args.lr=0.003
+    task.optimizer.args.lr=0.0003
 
-#--help
+LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
+    task=train \
+    dataset=kwcoco-demo \
+    use_wandb=False \
+    out_path="$BUNDLE_DPATH"/training \
+    name=kwcoco-demo \
+    cpu_num=0 \
+    device=0 \
+    accelerator=auto \
+    task.data.batch_size=2 \
+    "image_size=[224,224]" \
+    task.optimizer.args.lr=0.0003
+
+
+### TODO: show how to validate
+
+# Grab a checkpoint
+CKPT_FPATH=$(python -c "if 1:
+    import pathlib
+    ckpt_dpath = pathlib.Path('$BUNDLE_DPATH') / 'training/train/kwcoco-demo/checkpoints'
+    checkpoints = sorted(ckpt_dpath.glob('*'))
+    print(checkpoints[-1])
+")
+echo "CKPT_FPATH = $CKPT_FPATH"
+
+
+#DISABLE_RICH_HANDLER=1
+LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
+    task=validation \
+    dataset=kwcoco-demo \
+    use_wandb=False \
+    out_path="$BUNDLE_DPATH"/training \
+    name=kwcoco-demo \
+    cpu_num=0 \
+    device=0 \
+    weight="'$CKPT_FPATH'" \
+    accelerator=auto \
+    "task.data.batch_size=2" \
+    "image_size=[224,224]"
+
+
+### TODO: show how to run inference
