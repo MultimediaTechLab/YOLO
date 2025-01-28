@@ -318,6 +318,17 @@ class StreamDataLoader:
         self.transform = AugmentationComposer([], data_cfg.image_size)
         self.stop_event = Event()
 
+        self.known_length = None
+
+        self._is_coco = str(self.source).endswith(('.zip', '.json'))
+        if self._is_coco:
+            # Prevent race conditions and ensure the coco file is loaded before
+            # we start a thread (OR improve thread architecture)
+            import kwcoco
+            self.coco_dset = kwcoco.CocoDataset(self.source)
+            self.known_length = self.coco_dset.n_images
+            ...
+
         if self.is_stream:
             import cv2
 
@@ -329,15 +340,32 @@ class StreamDataLoader:
             self.thread.start()
 
     def load_source(self):
-        if self.source.is_dir():  # image folder
+        if self._is_coco:
+            self.process_preloaded_coco()
+        elif self.source.is_dir():  # image folder
             self.load_image_folder(self.source)
         elif any(self.source.suffix.lower().endswith(ext) for ext in [".mp4", ".avi", ".mkv"]):  # Video file
             self.load_video_file(self.source)
-        else:  # Single image
+        else:
+            # Single image
             self.process_image(self.source)
+
+    def process_preloaded_coco(self):
+        coco_dset = self.coco_dset
+        for image_id in coco_dset.images():
+            if self.stop_event.is_set():
+                break
+            coco_img = coco_dset.coco_image(image_id)
+            file_path = coco_img.primary_image_filepath()
+            self.process_image(file_path)
 
     def load_image_folder(self, folder):
         folder_path = Path(folder)
+        # FIXME: This will just yield as many images as it can before the
+        # dataloader len function is called, and at that point it will
+        # only process up to the the number of images that were already
+        # loaded at that point, even though this function is doing
+        # more work in the background.
         for file_path in folder_path.rglob("*"):
             if self.stop_event.is_set():
                 break
@@ -403,4 +431,7 @@ class StreamDataLoader:
             self.thread.join(timeout=1)
 
     def __len__(self):
-        return self.queue.qsize() if not self.is_stream else 0
+        if self.known_length is None:
+            return self.queue.qsize() if not self.is_stream else 0
+        else:
+            return self.known_length
