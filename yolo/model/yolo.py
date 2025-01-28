@@ -135,27 +135,99 @@ class YOLO(nn.Module):
             weights = torch.load(weights, map_location=torch.device("cpu"), weights_only=False)
         if "model_state_dict" in weights:
             weights = weights["model_state_dict"]
+        if "state_dict" in weights:
+            weights = weights["state_dict"]
 
-        model_state_dict = self.model.state_dict()
+        if 0:
+            # Debug the state of the model and the loaded weights
+            import networkx as nx
+            graph_src = nx.DiGraph()
+            for key in list(weights.keys()):
+                graph_src.add_node(key)
+            graph_src.add_node('__root__')
+            for key in list(weights.keys()):
+                parts = key.split('.')
+                graph_src.add_edge('__root__', parts[0])
+                for i in range(1, len(parts)):
+                    parent = '.'.join(parts[:i - 1])
+                    child = '.'.join(parts[:i])
+                    graph_src.add_edge(parent, child)
+            nx.write_network_text(graph_src, max_depth=4, sources=['__root__'])
 
-        # TODO1: autoload old version weight
-        # TODO2: weight transform if num_class difference
+            graph_dst = nx.DiGraph()
+            dst_weights = self.state_dict()
+            for key in list(dst_weights.keys()):
+                graph_dst.add_node(key)
+            graph_dst.add_node('__root__')
+            for key in list(dst_weights.keys()):
+                parts = key.split('.')
+                graph_dst.add_edge('__root__', parts[0])
+                for i in range(1, len(parts)):
+                    parent = '.'.join(parts[:i - 1])
+                    child = '.'.join(parts[:i])
+                    graph_dst.add_edge(parent, child)
+            nx.write_network_text(graph_dst, max_depth=3, sources=['__root__'])
 
-        error_dict = {"Mismatch": set(), "Not Found": set()}
-        for model_key, model_weight in model_state_dict.items():
-            if model_key not in weights:
-                error_dict["Not Found"].add(tuple(model_key.split(".")[:-2]))
-                continue
-            if model_weight.shape != weights[model_key].shape:
-                error_dict["Mismatch"].add(tuple(model_key.split(".")[:-2]))
-                continue
-            model_state_dict[model_key] = weights[model_key]
+        USE_TORCH_LIBERATOR = False
+        if USE_TORCH_LIBERATOR:
 
-        for error_name, error_set in error_dict.items():
-            for weight_name in error_set:
-                logger.warning(f":warning: Weight {error_name} for key: {'.'.join(weight_name)}")
+            # Torch liberator will figure out the mapping in most cases but it
+            # is slow.
+            HACK_DONT_LOAD_EMA_WEIGHTS = True
+            if HACK_DONT_LOAD_EMA_WEIGHTS:
+                for key in list(weights.keys()):
+                    if key.startswith('ema.model'):
+                        weights.pop(key)
+            from torch_liberator.initializer import load_partial_state
+            load_partial_state(self, weights, verbose=3)
 
-        self.model.load_state_dict(model_state_dict)
+        else:
+            # TODO1: autoload old version weight
+            # TODO2: weight transform if num_class difference
+
+            model_state_dict = self.model.state_dict()
+
+            CHECK_FOR_WEIGHT_MUNGING = True
+            if CHECK_FOR_WEIGHT_MUNGING:
+                # Handle the simple case of weight munging ourselves
+                src_keys = list(weights.keys())
+                dst_keys = list(model_state_dict.keys())
+                src_roots = {p.split('.')[0] for p in src_keys}
+                dst_roots = {p.split('.')[0] for p in dst_keys}
+                if len(src_roots & dst_roots) == 0:
+                    src_prefixes = {tuple(p.split('.')[0:2]) for p in src_keys}
+                    if src_prefixes == {('ema', 'model'), ('model', 'model')}:
+                        logger.warning(":warning: Munging weights")
+                        munged_weights = {}
+                        for key in list(weights.keys()):
+                            prefix = 'model.model.'
+                            if key.startswith(prefix):
+                                new_key = key[len(prefix):]
+                                munged_weights[new_key] = weights[key]
+                        logger.warning(f":warning: Munged {len(munged_weights)} / {len(weights)} tensors")
+                        weights = munged_weights
+
+            error_dict = {"Mismatch": set(), "Not Found": set()}
+            for model_key, model_weight in model_state_dict.items():
+                if model_key not in weights:
+                    error_dict["Not Found"].add(tuple(model_key.split(".")[:-2]))
+                    continue
+                if model_weight.shape != weights[model_key].shape:
+                    error_dict["Mismatch"].add(tuple(model_key.split(".")[:-2]))
+                    continue
+                model_state_dict[model_key] = weights[model_key]
+
+            for error_name, error_set in error_dict.items():
+                for weight_name in error_set:
+                    logger.warning(f":warning: Weight {error_name} for key: {'.'.join(weight_name)}")
+
+            for error_name, error_set in error_dict.items():
+                if len(error_set) == 0:
+                    logger.info(f":white_check_mark: Num: weight {error_name}: {len(error_set)}")
+                else:
+                    logger.warning(f":warning: Num: weight {error_name}: {len(error_set)}")
+
+            self.model.load_state_dict(model_state_dict)
 
 
 def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80) -> YOLO:
