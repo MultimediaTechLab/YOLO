@@ -170,6 +170,7 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
     OmegaConf.set_struct(model_cfg, False)
     model = YOLO(model_cfg, class_num)
     if weight_path:
+        logger.info('🏋 Initializing weights')
         if weight_path == True:
             weight_path = Path("weights") / f"{model_cfg.name}.pt"
         elif isinstance(weight_path, str):
@@ -179,8 +180,9 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
             logger.info(f"🌐 Weight {weight_path} not found, try downloading")
             prepare_weight(weight_path=weight_path)
         if weight_path.exists():
+            logger.info(f'🏋 Loading weights from {weight_path}')
             model.save_load_weights(weight_path)
             logger.info(":white_check_mark: Success load model & weight")
     else:
-        logger.info(":white_check_mark: Success load model")
+        logger.info(":white_check_mark: Success load model without weights")
     return model
