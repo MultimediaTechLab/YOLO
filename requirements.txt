@@ -6,7 +6,6 @@ lazy-loader
 lightning
 loguru
 numpy
-opencv-python
 Pillow
 pycocotools
 requests
