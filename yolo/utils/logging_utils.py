@@ -40,6 +40,7 @@ from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
 from yolo.utils.model_utils import EMA
 from yolo.utils.solver_utils import make_ap_table
+from yolo.utils.kwcoco_utils import tensor_to_kwimage
 
 
 # TODO: should be moved to correct position
@@ -280,21 +281,6 @@ class ImageLogger(Callback):
                 fname = f'img_{epoch:04d}_{batch_idx:04d}.jpg'
                 fpath = out_dpath / fname
                 kwimage.imwrite(fpath, canvas)
-
-
-def tensor_to_kwimage(yolo_annot_tensor):
-    import kwimage
-    class_idxs = yolo_annot_tensor[:, 0].int()
-    boxes = kwimage.Boxes(yolo_annot_tensor[:, 1:5], format='xyxy')
-    dets = kwimage.Detections(
-        boxes=boxes,
-        class_idxs=class_idxs
-    )
-
-    if yolo_annot_tensor.shape[1] > 5:
-        scores = yolo_annot_tensor[:, 5]
-        dets.data['scores'] = scores
-    return dets
 
 
 def wandb_to_kwimage(wand_annots):
