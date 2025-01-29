@@ -85,6 +85,7 @@ class YoloDataset(Dataset):
         images_path = dataset_path / "images" / phase_name
 
         labels_path, data_type = locate_label_paths(dataset_path, phase_name)
+        logger.warning(f"Idenfitied input dataset type as: {data_type}")
 
         if data_type == 'kwcoco':
             """
@@ -357,7 +358,8 @@ class StreamDataLoader:
                 break
             coco_img = coco_dset.coco_image(image_id)
             file_path = coco_img.primary_image_filepath()
-            self.process_image(file_path)
+            metadata = coco_img.img
+            self.process_image(file_path, metadata)
 
     def load_image_folder(self, folder):
         folder_path = Path(folder)
@@ -372,11 +374,11 @@ class StreamDataLoader:
             if file_path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                 self.process_image(file_path)
 
-    def process_image(self, image_path):
+    def process_image(self, image_path, metadata=None):
         image = Image.open(image_path).convert("RGB")
         if image is None:
             raise ValueError(f"Error loading image: {image_path}")
-        self.process_frame(image)
+        self.process_frame(image, metadata)
 
     def load_video_file(self, video_path):
         import cv2
@@ -389,7 +391,7 @@ class StreamDataLoader:
             self.process_frame(frame)
         cap.release()
 
-    def process_frame(self, frame):
+    def process_frame(self, frame, metadata=None):
         if isinstance(frame, np.ndarray):
             # TODO: we don't need cv2
             import cv2
@@ -401,9 +403,9 @@ class StreamDataLoader:
         frame = frame[None]
         rev_tensor = rev_tensor[None]
         if not self.is_stream:
-            self.queue.put((frame, rev_tensor, origin_frame))
+            self.queue.put((frame, rev_tensor, origin_frame, metadata))
         else:
-            self.current_frame = (frame, rev_tensor, origin_frame)
+            self.current_frame = (frame, rev_tensor, origin_frame, metadata)
 
     def __iter__(self) -> Generator[Tensor, None, None]:
         return self
