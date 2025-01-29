@@ -118,6 +118,12 @@ class InferenceModel(BaseModel):
         # TODO: Add FastModel
         self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
 
+        if self.predict_loader._is_coco:
+            # hack: write to coco as well
+            self.pred_dset = self.predict_loader.coco_dset.copy()
+            self.pred_dset.reroot(absolute=True)
+            ...
+
     def setup(self, stage):
         self.vec2box = create_converter(
             self.cfg.model.name, self.model, self.cfg.model.anchor, self.cfg.image_size, self.device
@@ -128,8 +134,24 @@ class InferenceModel(BaseModel):
         return self.predict_loader
 
     def predict_step(self, batch, batch_idx):
-        images, rev_tensor, origin_frame = batch
+
+        if 0:
+            # We can access these variables if we need to
+            self._trainer.predict_dataloaders
+            self._trainer.predict_dataloaders.coco_dset
+
+        images, rev_tensor, origin_frame, metadata = batch
         predicts = self.post_process(self(images), rev_tensor=rev_tensor)
+
+        WRITE_TO_COCO = 1
+        if WRITE_TO_COCO:
+            from yolo.utils.kwcoco_utils import tensor_to_kwimage
+            for yolo_annot_tensor in predicts:
+                pred_dets = tensor_to_kwimage(yolo_annot_tensor).numpy()
+                pred_dets = pred_dets.non_max_supress(thresh=0.3)
+                for ann in list(pred_dets.to_coco()):
+                    ...
+
         img = draw_bboxes(origin_frame, predicts, idx2label=self.cfg.dataset.class_list)
 
         # TODO: handle prediction to kwcoco file.
