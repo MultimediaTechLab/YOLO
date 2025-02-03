@@ -356,9 +356,13 @@ class StreamDataLoader:
         for image_id in coco_dset.images():
             if self.stop_event.is_set():
                 break
+            classes = coco_dset.object_categories()  # todo: cache?
             coco_img = coco_dset.coco_image(image_id)
             file_path = coco_img.primary_image_filepath()
-            metadata = coco_img.img
+            metadata = {
+                'img': coco_img.img,
+                'classes': classes,
+            }
             self.process_image(file_path, metadata)
 
     def load_image_folder(self, folder):
@@ -402,10 +406,11 @@ class StreamDataLoader:
         frame, _, rev_tensor = self.transform(frame, torch.zeros(0, 5))
         frame = frame[None]
         rev_tensor = rev_tensor[None]
+        item = (frame, rev_tensor, origin_frame, metadata)
         if not self.is_stream:
-            self.queue.put((frame, rev_tensor, origin_frame, metadata))
+            self.queue.put(item)
         else:
-            self.current_frame = (frame, rev_tensor, origin_frame, metadata)
+            self.current_frame = item
 
     def __iter__(self) -> Generator[Tensor, None, None]:
         return self

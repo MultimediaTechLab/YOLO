@@ -140,4 +140,28 @@ LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
     "image_size=[224,224]"
 
 
-### TODO: show how to run inference
+### show how to run inference
+
+BUNDLE_DPATH=$HOME/demo-yolo-kwcoco-train
+TEST_FPATH=$BUNDLE_DPATH/vidshapes_rgb_test/data.kwcoco.json
+# Grab a checkpoint
+CKPT_FPATH=$(python -c "if 1:
+    import pathlib
+    ckpt_dpath = pathlib.Path('$BUNDLE_DPATH') / 'training/train/kwcoco-demo/checkpoints'
+    checkpoints = sorted(ckpt_dpath.glob('*'))
+    print(checkpoints[-1])
+")
+echo "CKPT_FPATH = $CKPT_FPATH"
+
+export DISABLE_RICH_HANDLER=1
+export CUDA_VISIBLE_DEVICES="1,"
+python yolo/lazy.py \
+    task.data.source="$TEST_FPATH" \
+    task=inference \
+    dataset=kwcoco-demo \
+    use_wandb=False \
+    out_path=kwcoco-demo-inference \
+    name=kwcoco-inference-test \
+    cpu_num=8 \
+    weight="\"$CKPT_FPATH\"" \
+    accelerator=auto
