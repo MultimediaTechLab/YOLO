@@ -13,7 +13,6 @@ from yolo.config.config import Config
 from yolo.model.yolo import YOLO
 from yolo.tools.data_loader import StreamDataLoader
 from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
-from yolo.utils.bounding_box_utils import Anc2Box, Vec2Box
 
 
 @pytest.fixture

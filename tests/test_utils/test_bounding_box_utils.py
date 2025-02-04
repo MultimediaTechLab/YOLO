@@ -228,5 +228,5 @@ def test_calculate_map():
     expected_ap50 = tensor(0.5050)
     expected_ap50_95 = tensor(0.2020)
 
-    assert isclose(mAP["map_50"], expected_ap50, atol=1e-4), f"AP50 mismatch"
-    assert isclose(mAP["map"], expected_ap50_95, atol=1e-4), f"Mean AP mismatch"
+    assert isclose(mAP["map_50"], expected_ap50, atol=1e-4), "AP50 mismatch"
+    assert isclose(mAP["map"], expected_ap50_95, atol=1e-4), "Mean AP mismatch"

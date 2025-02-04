@@ -1,5 +1,4 @@
 import sys
-from math import isinf, isnan
 from pathlib import Path
 
 import pytest

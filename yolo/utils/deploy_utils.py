@@ -99,7 +99,7 @@ class FastModelLoader:
 
         model = create_model(self.cfg.model, class_num=self.class_num, weight_path=self.cfg.weight).eval()
         dummy_input = torch.ones((1, 3, *self.cfg.image_size)).cuda()
-        logger.info(f"♻️ Creating TensorRT model")
+        logger.info("♻️ Creating TensorRT model")
         model_trt = torch2trt(model.cuda(), [dummy_input])
         torch.save(model_trt.state_dict(), self.model_path)
         logger.info(f":inbox_tray: TensorRT model saved to {self.model_path}")

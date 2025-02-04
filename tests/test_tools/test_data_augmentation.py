@@ -12,7 +12,6 @@ from yolo.tools.data_augmentation import (
     AugmentationComposer,
     HorizontalFlip,
     Mosaic,
-    VerticalFlip,
 )
 
 

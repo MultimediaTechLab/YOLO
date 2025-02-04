@@ -28,7 +28,7 @@ def test_build_model_v9c():
 
 def test_build_model_v9m():
     with initialize(config_path=config_path, version_base=None):
-        cfg: Config = compose(config_name=config_name, overrides=[f"model=v9-m"])
+        cfg: Config = compose(config_name=config_name, overrides=["model=v9-m"])
 
         OmegaConf.set_struct(cfg.model, False)
         cfg.weight = None
@@ -38,7 +38,7 @@ def test_build_model_v9m():
 
 def test_build_model_v7():
     with initialize(config_path=config_path, version_base=None):
-        cfg: Config = compose(config_name=config_name, overrides=[f"model=v7"])
+        cfg: Config = compose(config_name=config_name, overrides=["model=v7"])
 
         OmegaConf.set_struct(cfg.model, False)
         cfg.weight = None
