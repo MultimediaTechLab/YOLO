@@ -3,7 +3,7 @@ task: train
 defaults:
   - validation: ../validation
 
-epoch: 500
+epoch: 10
 
 data:
   batch_size: 16
@@ -12,19 +12,19 @@ data:
   shuffle: True
   pin_memory: True
   data_augment:
-    Mosaic: 1
+    # Mosaic: 1
     # MixUp: 1
-    # HorizontalFlip: 0.5
+    HorizontalFlip: 0.5
     RandomCrop: 1
     RemoveOutliers: 1e-8
 
 optimizer:
-  type: SGD
+  type: AdamW
   args:
-    lr: 0.01
+    lr: .001667
     weight_decay: 0.0005
-    momentum: 0.937
-    nesterov: true
+    betas: [.937,.999]
+    #nesterov: true
 
 loss:
   objective:
