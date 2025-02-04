@@ -35,8 +35,10 @@ def tensor_to_kwimage(yolo_annot_tensor, classes=None):
         dets.data['scores'] = scores
 
     if classes is not None:
-        import torch
-        idx_to_id = torch.Tensor(classes.idx_to_id).int().to(class_idxs.device)
-        class_ids = idx_to_id[class_idxs]
-        dets.data['class_ids'] = class_ids
+        if hasattr(classes, 'idx_to_id'):
+            # Add class-id information if that is available
+            import torch
+            idx_to_id = torch.Tensor(classes.idx_to_id).int().to(class_idxs.device)
+            class_ids = idx_to_id[class_idxs]
+            dets.data['class_ids'] = class_ids
     return dets
