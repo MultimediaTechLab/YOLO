@@ -337,6 +337,8 @@ def setup(cfg: Config):
 
     save_path = validate_log_directory(cfg, cfg.name)
 
+    write_config(cfg, save_path)
+
     progress, loggers = [], []
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
@@ -358,6 +360,15 @@ def setup(cfg: Config):
         loggers.append(WandbLogger(project="YOLO", name=cfg.name, save_dir=save_path, id=None))
 
     return progress, loggers, save_path
+
+
+@rank_zero_only
+def write_config(cfg, save_path):
+    # Dump the config to the disk in the output folder
+    from omegaconf import OmegaConf
+    config_text = OmegaConf.to_yaml(cfg)
+    config_fpath = save_path / f'{cfg.task.task}_config.yaml'
+    config_fpath.write_text(config_text)
 
 
 def log_model_structure(model: Union[ModuleList, YOLOLayer, YOLO]):

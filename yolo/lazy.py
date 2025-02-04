@@ -30,9 +30,6 @@ def main(cfg: DictConfig):
         default_root_dir=save_path,
         num_sanity_val_steps=0,
     )
-    from yolo.utils.logger import logger
-    logger.info("Start yolo lazy.py script")
-    logger.info(f"save_path={save_path}")
 
     if cfg.task.task == "train":
         model = TrainModel(cfg)
