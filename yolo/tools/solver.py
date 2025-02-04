@@ -10,8 +10,9 @@ from yolo.tools.data_loader import create_dataloader
 from yolo.tools.drawer import draw_bboxes
 from yolo.tools.loss_functions import create_loss_function
 from yolo.utils.bounding_box_utils import create_converter, to_metrics_format
+from yolo.utils.export_utils import ModelExporter
 from yolo.utils.model_utils import PostProcess, create_optimizer, create_scheduler
-
+from yolo.utils.logger import logger
 
 class BaseModel(LightningModule):
     def __init__(self, cfg: Config):
@@ -139,3 +140,22 @@ class InferenceModel(BaseModel):
         save_image_path = Path(self.trainer.default_root_dir) / f"frame{batch_idx:03d}.png"
         img.save(save_image_path)
         print(f"💾 Saved visualize image at {save_image_path}")
+
+
+class ExportModel(BaseModel):
+    def __init__(self, cfg: Config):
+        super().__init__(cfg)
+        self.cfg = cfg
+        self.format = cfg.task.format
+        self.model_exporter = ModelExporter(self.cfg, self.model)
+
+    def export(self):
+        if self.format == 'onnx':
+            self.model_exporter.export_onnx()
+        if self.format == 'tflite':
+            self.model_exporter.export_flite()
+        if self.format == 'coreml':
+            self.model_exporter.export_coreml()
+
+
+
