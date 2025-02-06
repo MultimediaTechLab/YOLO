@@ -70,7 +70,7 @@ def organize_annotations_by_image(data: Dict[str, Any], id_to_idx: Optional[Dict
     """
     annotation_lookup = {}
     for anno in data["annotations"]:
-        if anno["iscrowd"]:
+        if anno.get("iscrowd", False):
             continue
         image_id = anno["image_id"]
         if id_to_idx:
