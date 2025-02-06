@@ -132,11 +132,12 @@ class YOLO(nn.Module):
 
         model_state_dict = self.model.state_dict()
 
-        # TODO1: autoload old version weight
-        # TODO2: weight transform if num_class difference
-
         error_dict = {"Mismatch": set(), "Not Found": set()}
         for model_key, model_weight in model_state_dict.items():
+            # don't load weights into the detection heads since we're finetuning
+            if model_key.split(".")[1] == 'heads':
+                continue
+
             if model_key not in weights:
                 error_dict["Not Found"].add(tuple(model_key.split(".")[:-2]))
                 continue
