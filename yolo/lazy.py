@@ -2,13 +2,14 @@ import sys
 from pathlib import Path
 
 import hydra
+import torch
 from lightning import Trainer
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from yolo.config.config import Config
-from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
+from yolo.tools.solver import BaseModel, InferenceModel, TrainModel, ValidateModel
 from yolo.utils.logging_utils import setup
 
 
@@ -33,12 +34,36 @@ def main(cfg: Config):
     if cfg.task.task == "train":
         model = TrainModel(cfg)
         trainer.fit(model)
+
+        export_onnx(model, cfg)
     if cfg.task.task == "validation":
         model = ValidateModel(cfg)
         trainer.validate(model)
     if cfg.task.task == "inference":
         model = InferenceModel(cfg)
         trainer.predict(model)
+
+
+def export_onnx(model: TrainModel, cfg: Config):
+    model_state_dict = {}
+    for model_key, model_weight in model.state_dict().items():
+        if 'ema' not in model_key:
+            model_state_dict[model_key] = model_weight
+
+    cfg.model.auxiliary = {}
+    cfg.model.is_exporting = True
+    export_model = BaseModel(cfg).to('cpu')
+    export_model.load_state_dict(model_state_dict)
+
+    dummy_input = torch.ones((1, *cfg.image_size, 3))
+    torch.onnx.export(
+        export_model,
+        dummy_input,
+        '/home/nik/work/model.onnx',
+        input_names=["input"],
+        output_names=["output"],
+        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+    )
 
 
 if __name__ == "__main__":

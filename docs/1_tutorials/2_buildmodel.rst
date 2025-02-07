@@ -33,7 +33,7 @@ Arguments:
 
 .. code-block:: python
 
-    model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
+    model = create_model(cfg.model, cfg=cfg, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
     model = model.to(device)
 
 Deploy Model
