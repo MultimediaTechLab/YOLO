@@ -136,6 +136,7 @@ class YOLO(nn.Module):
             weights: A OrderedDict containing the new weights.
         """
         if isinstance(weights, Path):
+            logger.info(f":building_construction: Loading weights from {weights}")
             weights = torch.load(weights, map_location=torch.device("cpu"), weights_only=False)
         if "model_state_dict" in weights:
             weights = weights["model_state_dict"]

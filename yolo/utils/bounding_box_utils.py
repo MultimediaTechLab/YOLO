@@ -340,7 +340,6 @@ class Vec2Box:
         self.device = device
 
         if hasattr(anchor_cfg, "strides"):
-            logger.info(f":japanese_not_free_of_charge_button: Found stride of model {anchor_cfg.strides}")
             self.strides = anchor_cfg.strides
         else:
             logger.info(":teddy_bear: Found no stride of model, performed a dummy test for auto-anchor size")
@@ -393,7 +392,6 @@ class Anc2Box:
         self.device = device
 
         if hasattr(anchor_cfg, "strides"):
-            logger.info(f":japanese_not_free_of_charge_button: Found stride of model {anchor_cfg.strides}")
             self.strides = anchor_cfg.strides
         else:
             logger.info(":teddy_bear: Found no stride of model, performed a dummy test for auto-anchor size")
