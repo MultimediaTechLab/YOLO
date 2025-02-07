@@ -147,3 +147,5 @@ node_modules/
 
 # Not ignore image for demo
 !demo/images/*/*.png
+
+yolo/config/dataset/worlds.yaml
