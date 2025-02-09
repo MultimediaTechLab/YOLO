@@ -12,6 +12,7 @@ from omegaconf import ListConfig
 from torch import Tensor, no_grad
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR, SequentialLR, _LRScheduler
+import supervision as sv
 
 from yolo.config.config import IDX_TO_ID, NMSConfig, OptimizerConfig, SchedulerConfig
 from yolo.model.yolo import YOLO
@@ -222,3 +223,18 @@ def predicts_to_json(img_paths, predicts, rev_tensor):
             }
             batch_json.append(bbox)
     return batch_json
+
+
+def prediction_to_sv(predicts: List[Tensor]) -> sv.Detections:
+    """
+    Convert the prediction to the format of the Supervision
+    Args:
+        predicts:
+        rev_tensor:
+
+    Returns:
+        sv.Detections: The detections in the Supervision format
+    """
+    predicts = predicts[0].detach().cpu().numpy()
+    detections = sv.Detections(xyxy=predicts[:, 1:5], class_id=predicts[:, 0].astype(int), confidence=predicts[:, 5])
+    return detections

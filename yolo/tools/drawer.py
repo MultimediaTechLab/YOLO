@@ -1,9 +1,9 @@
-import random
-from typing import List, Optional, Union
+from typing import  Optional, Union
 
 import numpy as np
 import torch
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
+import supervision as sv
 from torchvision.transforms.functional import to_pil_image
 
 from yolo.config.config import ModelConfig
@@ -13,7 +13,7 @@ from yolo.utils.logger import logger
 
 def draw_bboxes(
     img: Union[Image.Image, torch.Tensor],
-    bboxes: List[List[Union[int, float]]],
+    detections: sv.Detections,
     *,
     idx2label: Optional[list] = None,
 ):
@@ -32,41 +32,17 @@ def draw_bboxes(
             img = img[0]
         img = to_pil_image(img)
 
-    if isinstance(bboxes, list) or bboxes.ndim == 3:
-        bboxes = bboxes[0]
-
+    box_annotator = sv.ColorAnnotator(color_lookup=sv.ColorLookup.CLASS)
+    label_annotator = sv.LabelAnnotator(color_lookup=sv.ColorLookup.CLASS)
     img = img.copy()
-    label_size = img.size[1] / 30
-    draw = ImageDraw.Draw(img, "RGBA")
-
-    try:
-        font = ImageFont.truetype("arial.ttf", int(label_size))
-    except IOError:
-        font = ImageFont.load_default(int(label_size))
-
-    for bbox in bboxes:
-        class_id, x_min, y_min, x_max, y_max, *conf = [float(val) for val in bbox]
-        x_min, x_max = min(x_min, x_max), max(x_min, x_max)
-        y_min, y_max = min(y_min, y_max), max(y_min, y_max)
-        bbox = [(x_min, y_min), (x_max, y_max)]
-
-        random.seed(int(class_id))
-        color_map = (random.randint(0, 200), random.randint(0, 200), random.randint(0, 200))
-
-        draw.rounded_rectangle(bbox, outline=(*color_map, 200), radius=5, width=2)
-        draw.rounded_rectangle(bbox, fill=(*color_map, 100), radius=5)
-
-        class_text = str(idx2label[int(class_id)] if idx2label else int(class_id))
-        label_text = f"{class_text}" + (f" {conf[0]: .0%}" if conf else "")
-
-        text_bbox = font.getbbox(label_text)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = (text_bbox[3] - text_bbox[1]) * 1.5
-
-        text_background = [(x_min, y_min), (x_min + text_width, y_min + text_height)]
-        draw.rounded_rectangle(text_background, fill=(*color_map, 175), radius=2)
-        draw.text((x_min, y_min), label_text, fill="white", font=font)
-
+    img = box_annotator.annotate(img, detections=detections)
+    if idx2label:
+        labels = [
+            f"{str(idx2label[int(class_id)])} {confidence:.2f}"
+            for class_id, confidence
+            in zip(detections.class_id, detections.confidence)
+        ]
+        img = label_annotator.annotate(img, labels=labels, detections=detections)
     return img
 
 
