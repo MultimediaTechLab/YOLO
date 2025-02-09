@@ -235,6 +235,8 @@ def prediction_to_sv(predicts: List[Tensor]) -> sv.Detections:
     Returns:
         sv.Detections: The detections in the Supervision format
     """
+    if len(predicts) == 0:
+        return sv.Detections.empty()
     predicts = predicts[0].detach().cpu().numpy()
     detections = sv.Detections(xyxy=predicts[:, 1:5], class_id=predicts[:, 0].astype(int), confidence=predicts[:, 5])
     return detections
