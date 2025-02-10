@@ -228,6 +228,7 @@ def predicts_to_json(img_paths, predicts, rev_tensor):
 def prediction_to_sv(predicts: List[Tensor]) -> sv.Detections:
     """
     Convert the prediction to the format of the Supervision
+
     Args:
         predicts:
         rev_tensor:

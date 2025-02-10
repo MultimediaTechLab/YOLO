@@ -12,7 +12,7 @@ from yolo.utils.logger import logger
 
 
 def draw_bboxes(
-    img: Union[Image.Image, torch.Tensor],
+    img: Image.Image | torch.Tensor,
     detections: sv.Detections,
     *,
     idx2label: Optional[list] = None,
