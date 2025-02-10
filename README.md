@@ -40,9 +40,9 @@ yolo task.data.source=0 # source could be a single file, video, image folder, we
 To get started using YOLOv9's developer mode, we recommand you clone this repository and install the required dependencies:
 
 ```shell
-git clone git@github.com:WongKinYiu/YOLO.git
+git clone https://github.com/MultimediaTechLab/YOLO.git
 cd YOLO
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Features
@@ -62,8 +62,8 @@ To train YOLO on your machine/dataset:
 2. Run the training script:
 
 ```shell
-python yolo/lazy.py task=train dataset=** use_wandb=True
-python yolo/lazy.py task=train task.data.batch_size=8 model=v9-c weight=False # or more args
+yolo task=train dataset=** use_wandb=True
+yolo task=train task.data.batch_size=8 model=v9-c weight=False # or more args
 ```
 
 ### Transfer Learning
@@ -71,7 +71,7 @@ python yolo/lazy.py task=train task.data.batch_size=8 model=v9-c weight=False # 
 To perform transfer learning with YOLOv9:
 
 ```shell
-python yolo/lazy.py task=train task.data.batch_size=8 model=v9-c dataset={dataset_config} device={cpu, mps, cuda}
+yolo task=train task.data.batch_size=8 model=v9-c dataset={dataset_config} device={cpu, mps, cuda}
 ```
 
 ### Inference
@@ -79,8 +79,7 @@ python yolo/lazy.py task=train task.data.batch_size=8 model=v9-c dataset={datase
 To use a model for object detection, use:
 
 ```shell
-python yolo/lazy.py # if cloned from GitHub
-python yolo/lazy.py task=inference \ # default is inference
+yolo task=inference \ # default is inference
                     name=AnyNameYouWant \ # AnyNameYouWant
                     device=cpu \ # hardware cuda, cpu, mps
                     model=v9-s \ # model version: v9-c, m, s
@@ -88,8 +87,6 @@ python yolo/lazy.py task=inference \ # default is inference
                     task.fast_inference=onnx \ # onnx, trt, deploy
                     task.data.source=data/toy/images/train \ # file, dir, webcam
                     +quite=True \ # Quite Output
-yolo task.data.source={Any Source} # if pip installed
-yolo task=inference task.data.source={Any}
 ```
 
 ### Validation
@@ -97,8 +94,8 @@ yolo task=inference task.data.source={Any}
 To validate model performance, or generate a json file in COCO format:
 
 ```shell
-python yolo/lazy.py task=validation
-python yolo/lazy.py task=validation dataset=toy
+yolo task=validation
+yolo task=validation dataset=toy
 ```
 
 ## Contributing
