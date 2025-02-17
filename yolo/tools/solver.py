@@ -15,9 +15,9 @@ from yolo.utils.model_utils import PostProcess, create_optimizer, create_schedul
 from yolo.utils.logger import logger
 
 class BaseModel(LightningModule):
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, export: bool = False):
         super().__init__()
-        self.model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
+        self.model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight, export=export)
 
     def forward(self, x):
         return self.model(x)
@@ -144,7 +144,8 @@ class InferenceModel(BaseModel):
 
 class ExportModel(BaseModel):
     def __init__(self, cfg: Config):
-        super().__init__(cfg)
+        cfg.model.model.auxiliary = {}
+        super().__init__(cfg, export=True)
         self.cfg = cfg
         self.format = cfg.task.format
         self.model_exporter = ModelExporter(self.cfg, self.model)

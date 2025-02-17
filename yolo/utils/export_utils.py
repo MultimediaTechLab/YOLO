@@ -19,25 +19,39 @@ class ModelExporter():
         import torch
         dummy_input = torch.ones((1, 3, *self.cfg.image_size))
 
+        onnx_model_path = f"{Path(self.cfg.weight).stem}.onnx"
+
         # TODO move duplicated export code also used in fast inference to a separate file
         torch.onnx.export(
             self.model,
             dummy_input,
-            self.model_path,
+            onnx_model_path,
             input_names=["input"],
             output_names=["output"],
-            dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+            dynamic_axes=None #{"input": {0: "batch_size"}, "output": {0: "batch_size"}},
         )
 
+        return onnx_model_path
     def export_flite(self):
         logger.info(f":package: Exporting model to tflite format")
         logger.info(f":construction: Not implemented yet")
 
     def export_coreml(self):
         logger.info(f":package: Exporting model to coreml format")
-        logger.info(f":construction: Not implemented yet")
+
         import torch
         dummy_input = torch.ones((1, 3, *self.cfg.image_size))
-        traced_model = torch.jit.trace(self.model, dummy_input)
-        out = traced_model(dummy_input)
         
+        self.model.eval()
+        traced_model = torch.jit.trace(self.model, dummy_input)
+        
+        import coremltools as ct
+        import logging
+        logging.getLogger("coremltools").disabled = True
+        model_from_trace = ct.convert(
+            traced_model,
+            inputs=[ct.TensorType(shape=dummy_input.shape)],
+            convert_to="neuralnetwork",
+        )
+        model_from_trace.save(f"{Path(self.cfg.weight).stem}.mlmodel")
+        logger.info(f":white_check_mark: Model exported to coreml format")
