@@ -1,35 +1,40 @@
 
+from typing import Dict, List, Optional
 from yolo.config.config import Config
 from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
 from pathlib import Path
 
 class ModelExporter():
-    def __init__(self, cfg: Config, model: YOLO):
+    def __init__(self, cfg: Config, model: YOLO, format: str, model_path: Optional[str] = None):
         self.model = model
         self.cfg = cfg
         self.class_num = cfg.dataset.class_num
-        self.format = self.cfg.task.format
+        self.format = format
         if cfg.weight == True:
             cfg.weight = Path("weights") / f"{cfg.model.name}.pt"
-        self.model_path = f"{Path(self.cfg.weight).stem}.{self.format}"
+        if model_path:
+            self.model_path = model_path
+        else:
+            self.model_path = f"{Path(self.cfg.weight).stem}.{self.format}"
 
-    def export_onnx(self):
+    def export_onnx(self, dynamic_axes : Optional[Dict[str, Dict[int, str]]] = None):
         logger.info(f":package: Exporting model to onnx format")
         import torch
         dummy_input = torch.ones((1, 3, *self.cfg.image_size))
 
         onnx_model_path = f"{Path(self.cfg.weight).stem}.onnx"
 
-        # TODO move duplicated export code also used in fast inference to a separate file
         torch.onnx.export(
             self.model,
             dummy_input,
             onnx_model_path,
             input_names=["input"],
             output_names=["output"],
-            dynamic_axes=None #{"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+            dynamic_axes=dynamic_axes,
         )
+
+        logger.info(f":inbox_tray: ONNX model saved to {self.model_path}")
 
         return onnx_model_path
     def export_flite(self):
@@ -40,18 +45,25 @@ class ModelExporter():
         logger.info(f":package: Exporting model to coreml format")
 
         import torch
-        dummy_input = torch.ones((1, 3, *self.cfg.image_size))
         
         self.model.eval()
-        traced_model = torch.jit.trace(self.model, dummy_input)
-        
-        import coremltools as ct
+        example_inputs = (torch.rand(1, 3, *self.cfg.image_size),)
+        exported_program = torch.export.export(self.model, example_inputs)
+
         import logging
+        import coremltools as ct
+
+        # Convert to Core ML program using the Unified Conversion API.
         logging.getLogger("coremltools").disabled = True
-        model_from_trace = ct.convert(
-            traced_model,
-            inputs=[ct.TensorType(shape=dummy_input.shape)],
-            convert_to="neuralnetwork",
-        )
-        model_from_trace.save(f"{Path(self.cfg.weight).stem}.mlmodel")
+        
+        output_names : List[str] = [
+            "1_class_scores_small", "2_box_features_small", "3_bbox_deltas_small",
+            "4_class_scores_medium", "5_box_features_medium", "6_bbox_deltas_medium",
+            "7_class_scores_large", "8_box_features_large", "9_bbox_deltas_large"
+        ]
+        
+        model_from_export = ct.convert(exported_program, 
+                                       outputs=[ct.TensorType(name=name) for name in output_names])
+        
+        model_from_export.save(f"{Path(self.cfg.weight).stem}.mlpackage")
         logger.info(f":white_check_mark: Model exported to coreml format")

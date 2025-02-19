@@ -21,9 +21,8 @@ class YOLO(nn.Module):
                    parameters, and any other relevant configuration details.
     """
 
-    def __init__(self, model_cfg: ModelConfig, class_num: int = 80, export : bool =False):
+    def __init__(self, model_cfg: ModelConfig, class_num: int = 80):
         super(YOLO, self).__init__()
-        self.export = export
         self.num_classes = class_num
         self.layer_map = get_layer_map()  # Get the map Dict[str: Module]
         self.model: List[YOLOLayer] = nn.ModuleList()
@@ -72,25 +71,27 @@ class YOLO(nn.Module):
     def forward(self, x):
         y = {0: x}
         output = dict()
-        for index, layer in enumerate(self.model, start=1):
+        
+        # Use a simple loop instead of enumerate()
+        # Needed for torch export compatibility
+        index = 1  
+        for layer in self.model:  
             if isinstance(layer.source, list):
                 model_input = [y[idx] for idx in layer.source]
             else:
                 model_input = y[layer.source]
+            
             x = layer(model_input)
             y[-1] = x
+            
             if layer.usable:
                 y[index] = x
             
-            # On export we want to trace the model with torch.jit.trace
-            # Dicts and tuples are not supported by torch.jit.trace
-            # This is possible because we have one output tag on export (Main)
-            if layer.output and self.export == True:
-                output = x
-                output = [tensor for tpl in output for tensor in tpl]
-            elif layer.output:
+            if layer.output:
                 output[layer.tags] = x
             
+            index += 1
+        
         return output
 
     def get_out_channels(self, layer_type: str, layer_args: dict, output_dim: list, source: Union[int, list]):
@@ -161,7 +162,7 @@ class YOLO(nn.Module):
         self.model.load_state_dict(model_state_dict)
 
 
-def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80, export : bool = False) -> YOLO:
+def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80) -> YOLO:
     """Constructs and returns a model from a Dictionary configuration file.
 
     Args:
@@ -171,7 +172,7 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
         YOLO: An instance of the model defined by the given configuration.
     """
     OmegaConf.set_struct(model_cfg, False)
-    model = YOLO(model_cfg, class_num, export=export)
+    model = YOLO(model_cfg, class_num)
     if weight_path:
         if weight_path == True:
             weight_path = Path("weights") / f"{model_cfg.name}.pt"
