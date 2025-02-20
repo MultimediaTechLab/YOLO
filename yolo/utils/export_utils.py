@@ -1,9 +1,8 @@
-
+from pathlib import Path
 from typing import Dict, List, Optional
 from yolo.config.config import Config
 from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
-from pathlib import Path
 
 class ModelExporter():
     def __init__(self, cfg: Config, model: YOLO, format: str, model_path: Optional[str] = None):

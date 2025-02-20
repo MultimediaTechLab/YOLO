@@ -12,8 +12,8 @@ from yolo.tools.loss_functions import create_loss_function
 from yolo.utils.bounding_box_utils import create_converter, to_metrics_format
 from yolo.utils.deploy_utils import FastModelLoader
 from yolo.utils.export_utils import ModelExporter
-from yolo.utils.model_utils import PostProcess, create_optimizer, create_scheduler
 from yolo.utils.logger import logger
+from yolo.utils.model_utils import PostProcess, create_optimizer, create_scheduler
 
 class BaseModel(LightningModule):
     def __init__(self, cfg: Config, export: bool = False):
