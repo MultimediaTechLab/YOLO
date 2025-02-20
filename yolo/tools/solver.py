@@ -111,7 +111,8 @@ class TrainModel(ValidateModel):
 
 class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
-        cfg.model.model.auxiliary = {}
+        if not hasattr(cfg.model.model, 'auxiliary'):
+            cfg.model.model.auxiliary = {}
         super().__init__(cfg)
         # super().__init__(cfg)
         self.cfg = cfg
@@ -154,7 +155,8 @@ class InferenceModel(BaseModel):
 
 class ExportModel(BaseModel):
     def __init__(self, cfg: Config):
-        cfg.model.model.auxiliary = {}
+        if not hasattr(cfg.model.model, 'auxiliary'):
+            cfg.model.model.auxiliary = {}
         super().__init__(cfg)
         self.cfg = cfg
         self.format = cfg.task.format
