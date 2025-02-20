@@ -111,7 +111,7 @@ class TrainModel(ValidateModel):
 
 class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
-        if not hasattr(cfg.model.model, 'auxiliary'):
+        if hasattr(cfg.model.model, 'auxiliary'):
             cfg.model.model.auxiliary = {}
         super().__init__(cfg)
         # super().__init__(cfg)
@@ -133,7 +133,7 @@ class InferenceModel(BaseModel):
 
     def predict_step(self, batch, batch_idx):
         images, rev_tensor, origin_frame = batch
-        if self.fast_model:
+        if hasattr(self, 'fast_model') and self.fast_model:
             predictions = self.fast_model(images)
         else:
             predictions = self(images)
@@ -155,7 +155,7 @@ class InferenceModel(BaseModel):
 
 class ExportModel(BaseModel):
     def __init__(self, cfg: Config):
-        if not hasattr(cfg.model.model, 'auxiliary'):
+        if hasattr(cfg.model.model, 'auxiliary'):
             cfg.model.model.auxiliary = {}
         super().__init__(cfg)
         self.cfg = cfg
