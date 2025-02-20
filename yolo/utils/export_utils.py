@@ -1,5 +1,5 @@
-from pathlib import Path
 from typing import Dict, List, Optional
+from pathlib import Path
 from yolo.config.config import Config
 from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
