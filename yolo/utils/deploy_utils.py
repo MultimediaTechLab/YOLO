@@ -13,14 +13,14 @@ class FastModelLoader:
     def __init__(self, cfg: Config, model: YOLO):
         self.cfg = cfg
         self.model = model
-        self.compiler : str = cfg.task.fast_inference
+        self.compiler: str = cfg.task.fast_inference
         self.class_num = cfg.dataset.class_num
 
         self._validate_compiler()
         if cfg.weight == True:
             cfg.weight = Path("weights") / f"{cfg.model.name}.pt"
 
-        extension : str = self.compiler
+        extension: str = self.compiler
         if self.compiler == "coreml":
             extension = "mlpackage"
 
@@ -48,10 +48,10 @@ class FastModelLoader:
         return create_model(self.cfg.model, class_num=self.class_num, weight_path=self.cfg.weight).to(device)
 
     def _load_tflite_model(self, device):
-        
+
         if not Path(self.model_path).exists():
             self._create_tflite_model()
-        
+
         from ai_edge_litert.interpreter import Interpreter
 
         try:
@@ -66,18 +66,18 @@ class FastModelLoader:
 
             # Get input & output tensor details
             input_details = self.get_input_details()
-            output_details = sorted(self.get_output_details(), key=lambda d: d['name'])  # Sort by 'name'
+            output_details = sorted(self.get_output_details(), key=lambda d: d["name"])  # Sort by 'name'
 
             # Convert input tensor to NumPy and assign it to the model
             x_numpy = x.cpu().numpy()
-            self.set_tensor(input_details[0]['index'], x_numpy)
+            self.set_tensor(input_details[0]["index"], x_numpy)
 
             model_outputs, layer_output = [], []
             x_numpy = x.cpu().numpy()
-            self.set_tensor(input_details[0]['index'], x_numpy)
+            self.set_tensor(input_details[0]["index"], x_numpy)
             self.invoke()
             for idx, output_detail in enumerate(output_details):
-                predict = self.get_tensor(output_detail['index'])
+                predict = self.get_tensor(output_detail["index"])
                 layer_output.append(torch.from_numpy(predict).to(device))
                 if idx % 3 == 2:
                     model_outputs.append(layer_output)
@@ -126,7 +126,8 @@ class FastModelLoader:
 
     def _create_onnx_model(self, providers):
         from onnxruntime import InferenceSession
-        model_exporter = ModelExporter(self.cfg, self.model, format='onnx', model_path=self.model_path)
+
+        model_exporter = ModelExporter(self.cfg, self.model, format="onnx", model_path=self.model_path)
         model_exporter.export_onnx(dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}})
         return InferenceSession(self.model_path, providers=providers)
 
@@ -157,13 +158,13 @@ class FastModelLoader:
             return None
 
         return model_coreml
-    
+
     def _create_tflite_model(self):
-        model_exporter = ModelExporter(self.cfg, self.model, format='tflite', model_path=self.model_path)
+        model_exporter = ModelExporter(self.cfg, self.model, format="tflite", model_path=self.model_path)
         model_exporter.export_tflite()
 
     def _create_coreml_model(self):
-        model_exporter = ModelExporter(self.cfg, self.model, format='coreml', model_path=self.model_path)
+        model_exporter = ModelExporter(self.cfg, self.model, format="coreml", model_path=self.model_path)
         model_exporter.export_coreml()
 
     def _load_trt_model(self):

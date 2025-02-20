@@ -15,6 +15,7 @@ from yolo.utils.export_utils import ModelExporter
 from yolo.utils.logger import logger
 from yolo.utils.model_utils import PostProcess, create_optimizer, create_scheduler
 
+
 class BaseModel(LightningModule):
     def __init__(self, cfg: Config, export: bool = False):
         super().__init__()
@@ -111,7 +112,7 @@ class TrainModel(ValidateModel):
 
 class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
-        if hasattr(cfg.model.model, 'auxiliary'):
+        if hasattr(cfg.model.model, "auxiliary"):
             cfg.model.model.auxiliary = {}
         super().__init__(cfg)
         # super().__init__(cfg)
@@ -133,7 +134,7 @@ class InferenceModel(BaseModel):
 
     def predict_step(self, batch, batch_idx):
         images, rev_tensor, origin_frame = batch
-        if hasattr(self, 'fast_model') and self.fast_model:
+        if hasattr(self, "fast_model") and self.fast_model:
             predictions = self.fast_model(images)
         else:
             predictions = self(images)
@@ -155,7 +156,7 @@ class InferenceModel(BaseModel):
 
 class ExportModel(BaseModel):
     def __init__(self, cfg: Config):
-        if hasattr(cfg.model.model, 'auxiliary'):
+        if hasattr(cfg.model.model, "auxiliary"):
             cfg.model.model.auxiliary = {}
         super().__init__(cfg)
         self.cfg = cfg
@@ -163,12 +164,9 @@ class ExportModel(BaseModel):
         self.model_exporter = ModelExporter(self.cfg, self.model, format=self.format)
 
     def export(self):
-        if self.format == 'onnx':
+        if self.format == "onnx":
             self.model_exporter.export_onnx()
-        if self.format == 'tflite':
+        if self.format == "tflite":
             self.model_exporter.export_tflite()
-        if self.format == 'coreml':
+        if self.format == "coreml":
             self.model_exporter.export_coreml()
-
-
-
