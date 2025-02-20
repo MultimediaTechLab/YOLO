@@ -164,7 +164,7 @@ class ExportModel(BaseModel):
         if self.format == 'onnx':
             self.model_exporter.export_onnx()
         if self.format == 'tflite':
-            self.model_exporter.export_flite()
+            self.model_exporter.export_tflite()
         if self.format == 'coreml':
             self.model_exporter.export_coreml()
 

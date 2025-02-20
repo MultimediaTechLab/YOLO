@@ -27,7 +27,7 @@ class FastModelLoader:
         self.model_path = f"{Path(cfg.weight).stem}.{extension}"
 
     def _validate_compiler(self):
-        if self.compiler not in ["onnx", "trt", "deploy", "coreml"]:
+        if self.compiler not in ["onnx", "trt", "deploy", "coreml", "tflite"]:
             logger.warning(f":warning: Compiler '{self.compiler}' is not supported. Using original model.")
             self.compiler = None
         if self.cfg.device == "mps" and self.compiler == "trt":
@@ -37,6 +37,8 @@ class FastModelLoader:
     def load_model(self, device):
         if self.compiler == "onnx":
             return self._load_onnx_model(device)
+        if self.compiler == "tflite":
+            return self._load_tflite_model(device)
         elif self.compiler == "coreml":
             return self._load_coreml_model(device)
         elif self.compiler == "trt":
@@ -44,6 +46,49 @@ class FastModelLoader:
         elif self.compiler == "deploy":
             self.cfg.model.model.auxiliary = {}
         return create_model(self.cfg.model, class_num=self.class_num, weight_path=self.cfg.weight).to(device)
+
+    def _load_tflite_model(self, device):
+        
+        if not Path(self.model_path).exists():
+            self._create_tflite_model()
+        
+        from ai_edge_litert.interpreter import Interpreter
+
+        try:
+            interpreter = Interpreter(model_path=self.model_path)
+            interpreter.allocate_tensors()
+            logger.info(":rocket: Using TensorFlow Lite as MODEL framework!")
+        except Exception as e:
+            logger.warning(f"🈳 Error loading TFLite model: {e}")
+            interpreter = self._create_tflite_model()
+
+        def tflite_forward(self: Interpreter, x: Tensor):
+
+            # Get input & output tensor details
+            input_details = self.get_input_details()
+            output_details = sorted(self.get_output_details(), key=lambda d: d['name'])  # Sort by 'name'
+
+            # Convert input tensor to NumPy and assign it to the model
+            x_numpy = x.cpu().numpy()
+            self.set_tensor(input_details[0]['index'], x_numpy)
+
+            model_outputs, layer_output = [], []
+            x_numpy = x.cpu().numpy()
+            self.set_tensor(input_details[0]['index'], x_numpy)
+            self.invoke()
+            for idx, output_detail in enumerate(output_details):
+                predict = self.get_tensor(output_detail['index'])
+                layer_output.append(torch.from_numpy(predict).to(device))
+                if idx % 3 == 2:
+                    model_outputs.append(layer_output)
+                    layer_output = []
+            if len(model_outputs) == 6:
+                model_outputs = model_outputs[:3]
+            return {"Main": model_outputs}
+
+        Interpreter.__call__ = tflite_forward
+
+        return interpreter
 
     def _load_onnx_model(self, device):
 
@@ -101,15 +146,22 @@ class FastModelLoader:
 
         models.MLModel.__call__ = coreml_forward
 
+        if not Path(self.model_path).exists():
+            self._create_coreml_model()
+
         try:
             model_coreml = models.MLModel(self.model_path)
             logger.info(":rocket: Using CoreML as MODEL frameworks!")
         except FileNotFoundError:
             logger.warning(f"🈳 No found model weight at {self.model_path}")
-            model_coreml = self._create_coreml_model()
+            return None
 
         return model_coreml
     
+    def _create_tflite_model(self):
+        model_exporter = ModelExporter(self.cfg, self.model, format='tflite', model_path=self.model_path)
+        model_exporter.export_tflite()
+
     def _create_coreml_model(self):
         model_exporter = ModelExporter(self.cfg, self.model, format='coreml', model_path=self.model_path)
         model_exporter.export_coreml()

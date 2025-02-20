@@ -18,28 +18,50 @@ class ModelExporter():
         else:
             self.model_path = f"{Path(self.cfg.weight).stem}.{self.format}"
 
-    def export_onnx(self, dynamic_axes : Optional[Dict[str, Dict[int, str]]] = None):
+    def export_onnx(self, dynamic_axes : Optional[Dict[str, Dict[int, str]]] = None, model_path: Optional[str] = None):
         logger.info(f":package: Exporting model to onnx format")
         import torch
         dummy_input = torch.ones((1, 3, *self.cfg.image_size))
 
-        onnx_model_path = f"{Path(self.cfg.weight).stem}.onnx"
+        if model_path:
+            onnx_model_path = model_path
+        else:
+            onnx_model_path = self.model_path
+
+        # onnx_model_path = f"{Path(self.cfg.weight).stem}.onnx"
+        output_names : List[str] = [
+            "1_class_scores_small", "2_box_features_small", "3_bbox_deltas_small",
+            "4_class_scores_medium", "5_box_features_medium", "6_bbox_deltas_medium",
+            "7_class_scores_large", "8_box_features_large", "9_bbox_deltas_large"
+        ]
 
         torch.onnx.export(
             self.model,
             dummy_input,
             onnx_model_path,
             input_names=["input"],
-            output_names=["output"],
+            output_names=output_names,
             dynamic_axes=dynamic_axes,
         )
 
-        logger.info(f":inbox_tray: ONNX model saved to {self.model_path}")
+
+
+        logger.info(f":inbox_tray: ONNX model saved to {onnx_model_path}")
 
         return onnx_model_path
-    def export_flite(self):
+    
+    def export_tflite(self):
         logger.info(f":package: Exporting model to tflite format")
-        logger.info(f":construction: Not implemented yet")
+
+        import torch
+        self.model.eval()
+        example_inputs = (torch.rand(1, 3, *self.cfg.image_size),)
+
+        import ai_edge_torch
+        edge_model = ai_edge_torch.convert(self.model, example_inputs)
+        edge_model.export(self.model_path)
+
+        logger.info(f":white_check_mark: Model exported to tflite format")
 
     def export_coreml(self):
         logger.info(f":package: Exporting model to coreml format")
