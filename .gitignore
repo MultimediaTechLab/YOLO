@@ -117,6 +117,7 @@ runs
 */data
 
 # Datasets and model checkpoints
+*.ckpt
 *.pth
 *.pt
 *.trt

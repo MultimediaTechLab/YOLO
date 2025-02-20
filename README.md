@@ -17,7 +17,7 @@
 >
 > Use of this code is at your own risk and discretion. It is advisable to consult with the project owner before deploying or integrating into any critical systems. -->
 
-Welcome to the official implementation of YOLOv7 and YOLOv9, YOLO-RD. This repository will contains the complete codebase, pre-trained models, and detailed instructions for training and deploying YOLOv9.
+Welcome to the official implementation of YOLOv7[^1] and YOLOv9[^2], YOLO-RD[^3]. This repository will contains the complete codebase, pre-trained models, and detailed instructions for training and deploying YOLOv9.
 
 ## TL;DR
 
@@ -133,3 +133,9 @@ Contributions to the YOLO project are welcome! See [CONTRIBUTING](docs/CONTRIBUT
 }
 
 ```
+
+[^1]: [**YOLOv7**: Trainable Bag-of-Freebies Sets New State-of-the-Art for Real-Time Object Detectors](https://arxiv.org/abs/2207.02696)
+
+[^2]: [**YOLOv9**: Learning What You Want to Learn Using Programmable Gradient Information](https://arxiv.org/abs/2402.13616)
+
+[^3]: [**YOLO-RD**: Introducing Relevant and Compact Explicit Knowledge to YOLO by Retriever-Dictionary](https://arxiv.org/abs/2410.15346)
