@@ -7,6 +7,7 @@ from torchmetrics.detection import MeanAveragePrecision
 from yolo.config.config import Config
 from yolo.model.yolo import create_model
 from yolo.tools.data_loader import create_dataloader
+from yolo.utils.model_utils import prediction_to_sv
 from yolo.tools.drawer import draw_bboxes
 from yolo.tools.loss_functions import create_loss_function
 from yolo.utils.bounding_box_utils import create_converter, to_metrics_format
@@ -126,7 +127,9 @@ class InferenceModel(BaseModel):
     def predict_step(self, batch, batch_idx):
         images, rev_tensor, origin_frame = batch
         predicts = self.post_process(self(images), rev_tensor=rev_tensor)
-        img = draw_bboxes(origin_frame, predicts, idx2label=self.cfg.dataset.class_list)
+        detections = prediction_to_sv(predicts)  # convert to sv format
+        class_list = [str(label) for label in self.cfg.dataset.class_list]
+        img = draw_bboxes(origin_frame, detections, idx2label=class_list)
         if getattr(self.predict_loader, "is_stream", None):
             fps = self._display_stream(img)
         else:
