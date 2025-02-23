@@ -114,7 +114,6 @@ class TrainModel(ValidateModel):
 class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
-        import ubelt as ub
         self.cfg = cfg
         # TODO: Add FastModel
         self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
@@ -124,7 +123,16 @@ class InferenceModel(BaseModel):
             # Setup a kwcoco file to write to if the user requests it.
             self.pred_dset = self.predict_loader.coco_dset.copy()
             self.pred_dset.reroot(absolute=True)
-            self.pred_dset.fpath = ub.Path(self.pred_dset.fpath).augment(prefix='predict-', ext='.kwcoco.json', multidot=True)
+
+    def on_predict_start(self, *args, **kwargs):
+        import rich
+        import ubelt as ub
+        out_dpath = ub.Path(self.trainer.default_root_dir).absolute()
+        rich.print(f'Predict in: [link={out_dpath}]{out_dpath}[/link]')
+        if self.predict_loader._is_coco:
+            out_coco_fpath = out_dpath / 'pred.kwcoco.zip'
+            self.pred_dset.fpath = out_coco_fpath
+            rich.print(f'Coco prediction is enabled in: {self.pred_dset.fpath}')
 
     def on_predict_end(self, *args, **kwargs):
         print('[InferenceModel] on_predict_end')
@@ -158,8 +166,9 @@ class InferenceModel(BaseModel):
             dset = self.pred_dset
             for yolo_annot_tensor in predicts:
                 pred_dets = tensor_to_kwimage(yolo_annot_tensor, classes=classes).numpy()
-                pred_dets = pred_dets.non_max_supress(thresh=0.3)
-                for ann in list(pred_dets.to_coco(dset=dset)):
+                anns = list(pred_dets.to_coco(dset=dset))
+                print(f"Detected {len(anns)} boxes")
+                for ann in anns:
                     ann['image_id'] = image_id
                     dset.add_annotation(**ann)
 

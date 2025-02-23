@@ -164,4 +164,7 @@ python yolo/lazy.py \
     name=kwcoco-inference-test \
     cpu_num=8 \
     weight="\"$CKPT_FPATH\"" \
-    accelerator=auto
+    accelerator=auto  \
+    task.nms.min_confidence=0.01 \
+    task.nms.min_iou=0.3 \
+    task.nms.max_bbox=10
