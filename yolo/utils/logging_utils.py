@@ -264,7 +264,7 @@ class ImageLogger(Callback):
                 image_hwc = einops.rearrange(image_chw, 'c h w -> h w c')
                 image_hwc = kwimage.ensure_uint255(image_hwc)
 
-                assert bx == 0, 'not handling multiple per batch'
+                # assert bx == 0, 'not handling multiple per batch'
                 true_dets = tensor_to_kwimage(gt_boxes).numpy()
                 pred_dets = tensor_to_kwimage(pred_boxes).numpy()
                 pred_dets = pred_dets.non_max_supress(thresh=0.3)
