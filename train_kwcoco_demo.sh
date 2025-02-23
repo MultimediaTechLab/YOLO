@@ -96,48 +96,8 @@ LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
     device=0 \
     accelerator=auto \
     task.data.batch_size=2 \
-    "image_size=[224,224]" \
+    "image_size=[640, 640]" \
     task.optimizer.args.lr=0.0003
-
-LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
-    task=train \
-    dataset=kwcoco-demo \
-    use_wandb=False \
-    out_path="$BUNDLE_DPATH"/training \
-    name=kwcoco-demo \
-    cpu_num=0 \
-    device=0 \
-    accelerator=auto \
-    task.data.batch_size=2 \
-    "image_size=[224,224]" \
-    task.optimizer.args.lr=0.0003
-
-
-### TODO: show how to validate
-
-# Grab a checkpoint
-CKPT_FPATH=$(python -c "if 1:
-    import pathlib
-    ckpt_dpath = pathlib.Path('$BUNDLE_DPATH') / 'training/train/kwcoco-demo/checkpoints'
-    checkpoints = sorted(ckpt_dpath.glob('*'))
-    print(checkpoints[-1])
-")
-echo "CKPT_FPATH = $CKPT_FPATH"
-
-
-#DISABLE_RICH_HANDLER=1
-LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
-    task=validation \
-    dataset=kwcoco-demo \
-    use_wandb=False \
-    out_path="$BUNDLE_DPATH"/training \
-    name=kwcoco-demo \
-    cpu_num=0 \
-    device=0 \
-    weight="'$CKPT_FPATH'" \
-    accelerator=auto \
-    "task.data.batch_size=2" \
-    "image_size=[224,224]"
 
 
 ### show how to run inference
@@ -168,3 +128,29 @@ python yolo/lazy.py \
     task.nms.min_confidence=0.01 \
     task.nms.min_iou=0.3 \
     task.nms.max_bbox=10
+
+
+### Show how to run validation
+
+# Grab a checkpoint
+CKPT_FPATH=$(python -c "if 1:
+    import pathlib
+    ckpt_dpath = pathlib.Path('$BUNDLE_DPATH') / 'training/train/kwcoco-demo/checkpoints'
+    checkpoints = sorted(ckpt_dpath.glob('*'))
+    print(checkpoints[-1])
+")
+echo "CKPT_FPATH = $CKPT_FPATH"
+
+#DISABLE_RICH_HANDLER=1
+LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
+    task=validation \
+    dataset=kwcoco-demo \
+    use_wandb=False \
+    out_path="$BUNDLE_DPATH"/training \
+    name=kwcoco-demo \
+    cpu_num=0 \
+    device=0 \
+    weight="'$CKPT_FPATH'" \
+    accelerator=auto \
+    "task.data.batch_size=2" \
+    "image_size=[224,224]"

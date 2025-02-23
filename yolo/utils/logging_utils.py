@@ -360,7 +360,7 @@ def setup(cfg: Config):
             'monitor': 'train_loss',
             'mode': 'min',
             'save_top_k': 5,
-            'filename': '{epoch:04d}-{step:06d}-trainloss{Loss/BoxLoss:.3f}.ckpt',
+            'filename': '{epoch:04d}-{step:06d}-trainloss{train_loss.3f}.ckpt',
             'save_last': True,
         }
         import lightning
