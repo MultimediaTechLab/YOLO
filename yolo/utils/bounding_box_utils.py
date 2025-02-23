@@ -342,13 +342,14 @@ class Vec2Box:
         if hasattr(anchor_cfg, "strides"):
             logger.info(f":japanese_not_free_of_charge_button: Found stride of model {anchor_cfg.strides}")
             self.strides = anchor_cfg.strides
-        else:
+        elif not model.export_mode:
             logger.info(":teddy_bear: Found no stride of model, performed a dummy test for auto-anchor size")
             self.strides = self.create_auto_anchor(model, image_size)
 
-        anchor_grid, scaler = generate_anchors(image_size, self.strides)
         self.image_size = image_size
-        self.anchor_grid, self.scaler = anchor_grid.to(device), scaler.to(device)
+        if not model.export_mode:
+            anchor_grid, scaler = generate_anchors(image_size, self.strides)
+            self.anchor_grid, self.scaler = anchor_grid.to(device), scaler.to(device)
 
     def create_auto_anchor(self, model: YOLO, image_size):
         W, H = image_size
