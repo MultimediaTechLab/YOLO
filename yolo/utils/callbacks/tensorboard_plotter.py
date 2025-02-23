@@ -273,7 +273,6 @@ def _dump_measures(train_dpath, title='?name?', smoothing='auto', ignore_outlier
             plot_preferences.update(user_plot_preferences)
         else:
             plot_preferences = default_plot_preferences
-        print(f'plot_preferences = {ub.urepr(plot_preferences, nl=3)}')
 
         for item in plot_preferences['attributes']:
             item['pattern_'] = kwutil.util_pattern.MultiPattern.coerce(item['pattern'])

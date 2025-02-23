@@ -227,19 +227,20 @@ class ImageLogger(Callback):
         if batch_idx != 0:
             return
         batch_size, images, targets, rev_tensor, img_paths = batch
-        predicts, _ = outputs
-        gt_boxes = targets[0] if targets.ndim == 3 else targets
-        pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
-        images = [images[0]]
+        # predicts, _ = outputs
+        # gt_boxes = targets[0] if targets.ndim == 3 else targets
+        # pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
+        # images = [images[0]]
         step = trainer.current_epoch
 
-        for logger in trainer.loggers:
-            if isinstance(logger, WandbLogger):
+        for _logger in trainer.loggers:
+            if isinstance(_logger, WandbLogger):
                 # FIXME: not robust to configured image sizes, need to know
                 # that info.
-                logger.log_image("Input Image", images, step=step)
-                logger.log_image("Ground Truth", images, step=step, boxes=[log_bbox(gt_boxes)])
-                logger.log_image("Prediction", images, step=step, boxes=[log_bbox(pred_boxes)])
+                for image, gt_boxes, pred_boxes in zip(images, targets, outputs):
+                    _logger.log_image("Input Image", [image], step=step)
+                    _logger.log_image("Ground Truth", [image], step=step, boxes=[log_bbox(gt_boxes)])
+                    _logger.log_image("Prediction", [image], step=step, boxes=[log_bbox(pred_boxes)])
 
         # TODO: better config
         import os
@@ -258,6 +259,8 @@ class ImageLogger(Callback):
 
             for bx in range(len(images)):
                 image_chw = images[bx].data.cpu().numpy()
+                gt_boxes = targets[bx]
+                pred_boxes = outputs[bx]
                 image_hwc = einops.rearrange(image_chw, 'c h w -> h w c')
                 image_hwc = kwimage.ensure_uint255(image_hwc)
 
