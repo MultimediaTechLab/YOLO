@@ -27,7 +27,7 @@ include-package-data = true
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-    "setuptools",
+    "setuptools>=61.0"
 ]
 
 [project.scripts]

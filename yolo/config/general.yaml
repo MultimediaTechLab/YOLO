@@ -11,3 +11,4 @@ use_wandb: True
 use_tensorboard: False
 
 weight: True # Path to weight or True for auto, False for no pretrained weight
+accelerator: 'auto'

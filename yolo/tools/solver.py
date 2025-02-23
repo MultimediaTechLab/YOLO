@@ -55,7 +55,7 @@ class ValidateModel(BaseModel):
 
     def on_validation_epoch_end(self):
         epoch_metrics = self.metric.compute()
-        del epoch_metrics["classes"]
+        epoch_metrics.pop("classes", None)
         self.log_dict(epoch_metrics, prog_bar=True, sync_dist=True, rank_zero_only=True)
         self.log_dict(
             {"PyCOCO/AP @ .5:.95": epoch_metrics["map"], "PyCOCO/AP @ .5": epoch_metrics["map_50"]},
@@ -69,6 +69,10 @@ class TrainModel(ValidateModel):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.cfg = cfg
+
+        # TODO: if we defer creating the model until the dataset is loaded, we
+        # can introspect the number of categories and other things to make user
+        # configuration have less interdependencies and thus be more robust.
         self.train_loader = create_dataloader(self.cfg.task.data, self.cfg.dataset, self.cfg.task.task)
 
     def setup(self, stage):
@@ -110,9 +114,24 @@ class TrainModel(ValidateModel):
 class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
+        import ubelt as ub
         self.cfg = cfg
         # TODO: Add FastModel
         self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
+
+        print(f'self.predict_loader._is_coco={self.predict_loader._is_coco}')
+        if self.predict_loader._is_coco:
+            # Setup a kwcoco file to write to if the user requests it.
+            self.pred_dset = self.predict_loader.coco_dset.copy()
+            self.pred_dset.reroot(absolute=True)
+            self.pred_dset.fpath = ub.Path(self.pred_dset.fpath).augment(prefix='predict-', ext='.kwcoco.json', multidot=True)
+
+    def on_predict_end(self, *args, **kwargs):
+        print('[InferenceModel] on_predict_end')
+        dset = self.pred_dset
+        print(f'dset.fpath={dset.fpath}')
+        dset.dump()
+        print('Finished prediction')
 
     def setup(self, stage):
         self.vec2box = create_converter(
@@ -124,9 +143,28 @@ class InferenceModel(BaseModel):
         return self.predict_loader
 
     def predict_step(self, batch, batch_idx):
-        images, rev_tensor, origin_frame = batch
+
+        images, rev_tensor, origin_frame, metadata = batch
+
+        assert metadata is not None
+        img = metadata['img']
+        classes = metadata['classes']
+        image_id = img['id']
         predicts = self.post_process(self(images), rev_tensor=rev_tensor)
+
+        WRITE_TO_COCO = 1
+        if WRITE_TO_COCO:
+            from yolo.utils.kwcoco_utils import tensor_to_kwimage
+            dset = self.pred_dset
+            for yolo_annot_tensor in predicts:
+                pred_dets = tensor_to_kwimage(yolo_annot_tensor, classes=classes).numpy()
+                pred_dets = pred_dets.non_max_supress(thresh=0.3)
+                for ann in list(pred_dets.to_coco(dset=dset)):
+                    ann['image_id'] = image_id
+                    dset.add_annotation(**ann)
+
         img = draw_bboxes(origin_frame, predicts, idx2label=self.cfg.dataset.class_list)
+
         if getattr(self.predict_loader, "is_stream", None):
             fps = self._display_stream(img)
         else:
