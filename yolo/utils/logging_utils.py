@@ -355,12 +355,12 @@ def setup(cfg: Config):
 
     if 1:
         from yolo.utils.callbacks import TorchGlobals
-        callbacks.append(TorchGlobals())
+        callbacks.append(TorchGlobals(float32_matmul_precision='auto'))
         checkpoint_init_args = {
             'monitor': 'train_loss',
             'mode': 'min',
             'save_top_k': 5,
-            'filename': '{epoch:04d}-{step:06d}-trainloss{train_loss.3f}.ckpt',
+            'filename': '{epoch:04d}-{step:06d}-trainloss{train_loss:.3f}.ckpt',
             'save_last': True,
         }
         import lightning
