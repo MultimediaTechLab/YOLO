@@ -20,11 +20,11 @@ class FastModelLoader:
         if cfg.weight == True:
             cfg.weight = Path("weights") / f"{cfg.model.name}.pt"
 
-        extension: str = self.compiler
-        if self.compiler == "coreml":
-            extension = "mlpackage"
+        extention = self.compiler
+        if self.compiler == 'coreml':
+            extention = 'mlpackage'
 
-        self.model_path = f"{Path(cfg.weight).stem}.{extension}"
+        self.model_path = f"{Path(cfg.weight).stem}.{extention}"
 
     def _validate_compiler(self):
         if self.compiler not in ["onnx", "trt", "deploy", "coreml", "tflite"]:
@@ -136,18 +136,18 @@ class FastModelLoader:
 
         def coreml_forward(self, x: Tensor):
             x = x.cpu().numpy()
-            model_outputs, layer_output = [], []
+            model_outputs = []
             predictions = self.predict({"x": x})
-            for idx, key in enumerate(sorted(predictions.keys())):
-                layer_output.append(torch.from_numpy(predictions[key]).to(device))
-                if idx % 3 == 2:
-                    model_outputs.append(layer_output)
-                    layer_output = []
-            return {"Main": model_outputs}
+
+            output_keys = ['preds_cls', 'preds_anc', 'preds_box']
+            for key in output_keys:
+                model_outputs.append(torch.from_numpy(predictions[key]).to(device))
+            
+            return model_outputs
 
         models.MLModel.__call__ = coreml_forward
 
-        if not Path(self.model_path).exists():
+        if True or not Path(self.model_path).exists():
             self._create_coreml_model()
 
         try:

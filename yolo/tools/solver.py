@@ -17,9 +17,9 @@ from yolo.utils.model_utils import PostProcess, create_optimizer, create_schedul
 
 
 class BaseModel(LightningModule):
-    def __init__(self, cfg: Config, export: bool = False):
+    def __init__(self, cfg: Config, export_mode: bool = False):
         super().__init__()
-        self.model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
+        self.model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight, export_mode=export_mode)
 
     def forward(self, x):
         return self.model(x)
@@ -114,8 +114,14 @@ class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
         if hasattr(cfg.model.model, "auxiliary"):
             cfg.model.model.auxiliary = {}
-        super().__init__(cfg)
-        # super().__init__(cfg)
+
+        export_mode = False
+        fast_inference = cfg.task.fast_inference
+        # TODO check if we can use export mode for all formats
+        if fast_inference == "coreml":
+            export_mode = True
+
+        super().__init__(cfg, export_mode=export_mode)
         self.cfg = cfg
         self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
 
@@ -158,9 +164,16 @@ class ExportModel(BaseModel):
     def __init__(self, cfg: Config):
         if hasattr(cfg.model.model, "auxiliary"):
             cfg.model.model.auxiliary = {}
-        super().__init__(cfg)
+
+        export_mode = False
+        format = cfg.task.format
+        # TODO check if we can use export mode for all formats
+        if self.format == "coreml":
+            export_mode = True
+
+        super().__init__(cfg, export_mode=export_mode)
         self.cfg = cfg
-        self.format = cfg.task.format
+        self.format = format
         self.model_exporter = ModelExporter(self.cfg, self.model, format=self.format)
 
     def export(self):

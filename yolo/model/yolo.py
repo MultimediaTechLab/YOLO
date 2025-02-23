@@ -21,12 +21,13 @@ class YOLO(nn.Module):
                    parameters, and any other relevant configuration details.
     """
 
-    def __init__(self, model_cfg: ModelConfig, class_num: int = 80):
+    def __init__(self, model_cfg: ModelConfig, class_num: int = 80, export_mode : bool =False):
         super(YOLO, self).__init__()
         self.num_classes = class_num
         self.layer_map = get_layer_map()  # Get the map Dict[str: Module]
         self.model: List[YOLOLayer] = nn.ModuleList()
         self.reg_max = getattr(model_cfg.anchor, "reg_max", 16)
+        self.export_mode = export_mode
         self.build_model(model_cfg.model)
 
     def build_model(self, model_arch: Dict[str, List[Dict[str, Dict[str, Dict]]]]):
@@ -68,7 +69,37 @@ class YOLO(nn.Module):
                 setattr(layer, "out_c", out_channels)
             layer_idx += 1
 
+    def generate_anchors(self, image_size: List[int], strides: List[int]):
+        W, H = image_size
+        anchors = []
+        scaler = []
+        for stride in strides:
+            anchor_num = W // stride * H // stride
+            scaler.append(torch.full((anchor_num,), stride))
+            shift = stride // 2
+            h = torch.arange(0, H, stride) + shift
+            w = torch.arange(0, W, stride) + shift
+            if torch.__version__ >= "2.3.0":
+                anchor_h, anchor_w = torch.meshgrid(h, w, indexing="ij")
+            else:
+                anchor_h, anchor_w = torch.meshgrid(h, w)
+            anchor = torch.stack([anchor_w.flatten(), anchor_h.flatten()], dim=-1)
+            anchors.append(anchor)
+        all_anchors = torch.cat(anchors, dim=0)
+        all_scalers = torch.cat(scaler, dim=0)
+        return all_anchors, all_scalers
+    
+    def get_strides(self, output, input_width) -> List[int]:
+        W = input_width
+        strides = []
+        for predict_head in output:
+            _, _, *anchor_num = predict_head[2].shape
+            strides.append(W // anchor_num[1])
+        
+        return strides
+
     def forward(self, x, external: Optional[Dict] = None, shortcut: Optional[str] = None):
+        input_width, input_height = x.shape[-2:]
         y = {0: x, **(external or {})}
         output = dict()
 
@@ -95,6 +126,29 @@ class YOLO(nn.Module):
                     return output
 
             index += 1
+
+        if self.export_mode:
+
+            preds_cls, preds_anc, preds_box = [], [], []
+            for layer_output in output['Main']:
+                pred_cls, pred_anc, pred_box = layer_output
+                preds_cls.append(pred_cls.permute(0, 2, 3, 1).reshape(pred_cls.shape[0], -1, pred_cls.shape[1]))
+                preds_anc.append(pred_anc.permute(0, 3, 4, 1, 2).reshape(pred_anc.shape[0], -1, pred_anc.shape[2], pred_anc.shape[1]))
+                preds_box.append(pred_box.permute(0, 2, 3, 1).reshape(pred_box.shape[0], -1, pred_box.shape[1]))
+            
+            preds_cls = torch.concat(preds_cls, dim=1).to(x[0][0].device)
+            preds_anc = torch.concat(preds_anc, dim=1).to(x[0][0].device)
+            preds_box = torch.concat(preds_box, dim=1).to(x[0][0].device)
+            
+            strides = self.get_strides(output['Main'], input_width)
+            anchor_grid, scaler = self.generate_anchors([input_width,input_height], strides) #
+            anchor_grid = anchor_grid.to(x[0][0].device)
+            scaler = scaler.to(x[0][0].device)
+            pred_LTRB = preds_box * scaler.view(1, -1, 1)
+            lt, rb = pred_LTRB.chunk(2, dim=-1)
+            preds_box = torch.cat([anchor_grid - lt, anchor_grid + rb], dim=-1)
+            
+            return preds_cls, preds_anc, preds_box
 
         return output
 
@@ -167,7 +221,7 @@ class YOLO(nn.Module):
         self.model.load_state_dict(model_state_dict)
 
 
-def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80) -> YOLO:
+def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80, export_mode: bool = False) -> YOLO:
     """Constructs and returns a model from a Dictionary configuration file.
 
     Args:
@@ -177,7 +231,7 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
         YOLO: An instance of the model defined by the given configuration.
     """
     OmegaConf.set_struct(model_cfg, False)
-    model = YOLO(model_cfg, class_num)
+    model = YOLO(model_cfg, class_num, export_mode=export_mode)
     if weight_path:
         if weight_path == True:
             weight_path = Path("weights") / f"{model_cfg.name}.pt"
