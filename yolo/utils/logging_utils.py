@@ -339,27 +339,42 @@ def setup(cfg: Config):
 
     write_config(cfg, save_path)
 
-    progress, loggers = [], []
+    callbacks, loggers = [], []
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
-        progress.append(EMA(cfg.task.ema.decay))
+        callbacks.append(EMA(cfg.task.ema.decay))
     if quite:
         logger.setLevel(logging.ERROR)
-        return progress, loggers, save_path
+        return callbacks, loggers, save_path
 
     from yolo.utils.logger import DISABLE_RICH_HANDLER
-    if not DISABLE_RICH_HANDLER:
-        progress.append(YOLORichProgressBar())
-        progress.append(YOLORichModelSummary())
 
-    progress.append(ImageLogger())
+    if not DISABLE_RICH_HANDLER:
+        callbacks.append(YOLORichProgressBar())
+        callbacks.append(YOLORichModelSummary())
+
+    if 1:
+        from yolo.utils.callbacks import TorchGlobals
+        callbacks.append(TorchGlobals())
+        checkpoint_init_args = {
+            'monitor': 'train_loss',
+            'mode': 'min',
+            'save_top_k': 5,
+            'filename': '{epoch:04d}-{step:06d}-trainloss{Loss/BoxLoss:.3f}.ckpt',
+            'save_last': True,
+        }
+        import lightning
+        checkpointer = lightning.pytorch.callbacks.ModelCheckpoint(**checkpoint_init_args)
+        callbacks.append(checkpointer)
+
+    callbacks.append(ImageLogger())
 
     if cfg.use_tensorboard:
         loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
     if cfg.use_wandb:
         loggers.append(WandbLogger(project="YOLO", name=cfg.name, save_dir=save_path, id=None))
 
-    return progress, loggers, save_path
+    return callbacks, loggers, save_path
 
 
 @rank_zero_only
