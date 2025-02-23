@@ -103,7 +103,10 @@ class TrainModel(ValidateModel):
             rank_zero_only=True,
         )
         self.log_dict(lr_dict, prog_bar=False, logger=True, on_epoch=False, rank_zero_only=True)
-        return loss * batch_size
+        total_loss = loss * batch_size
+        stage = self.trainer.state.stage.value
+        self.log(f'{stage}_loss', total_loss, prog_bar=True, batch_size=batch_size)
+        return total_loss
 
     def configure_optimizers(self):
         optimizer = create_optimizer(self.model, self.cfg.task.optimizer)
