@@ -231,8 +231,28 @@ class YoloDataset(Dataset):
     def get_data(self, idx):
         img_path, bboxes = self.img_paths[idx], self.bboxes[idx]
         valid_mask = bboxes[:, 0] != -1
-        with Image.open(img_path) as img:
+
+        USE_OVERVIEW_HACK = 0
+        if USE_OVERVIEW_HACK:
+            # Can leverage overviews to load images faster if they exist.
+            import delayed_image
+            delayed = delayed_image.DelayedLoad(img_path)
+            delayed._load_metadata()
+            scale_factor = self.base_size / max(delayed.shape[0:2])
+            delayed = delayed.scale(scale_factor)
+            delayed = delayed.optimize()
+            # Peel off the top warp to only get the overviews
+            delayed = delayed.subdata
+            imdata = delayed.finalize()
+            img = Image.fromarray(imdata)
             img = img.convert("RGB")
+            # import kwimage
+            # imdata = kwimage.imread(img_path, overview=1, backend='gdal')
+        else:
+            with Image.open(img_path) as img:
+                img = img.convert("RGB")
+
+        # TODO: we can load an overview here to make this much more efficent
         return img, torch.from_numpy(bboxes[valid_mask]), img_path
 
     def get_more_data(self, num: int = 1):
