@@ -234,7 +234,8 @@ def _dump_measures(train_dpath, title='?name?', smoothing='auto', ignore_outlier
     else:
         smoothing_values = [smoothing]
 
-    plot_keys = [k for k in tb_data.keys() if '/' not in k]
+    # plot_keys = [k for k in tb_data.keys() if '/' not in k]
+    plot_keys = [k for k in tb_data.keys()]
     keys = set(tb_data.keys()).intersection(set(plot_keys))
     # no idea what hp metric is, but it doesn't seem important
     # keys = keys - {'hp_metric'}
@@ -243,7 +244,7 @@ def _dump_measures(train_dpath, title='?name?', smoothing='auto', ignore_outlier
         print('warning: no known keys to plot')
         print(f'available keys: {list(tb_data.keys())}')
 
-    USE_NEW_PLOT_PREF = 0
+    USE_NEW_PLOT_PREF = 1
     if USE_NEW_PLOT_PREF:
         # TODO: finish this
         default_plot_preferences = kwutil.Yaml.loads(ub.codeblock(
@@ -419,7 +420,7 @@ def _dump_measures(train_dpath, title='?name?', smoothing='auto', ignore_outlier
             ax.set_title(title)
 
             # png is smaller than jpg for this kind of plot
-            fpath = out_dpath / (key + '.png')
+            fpath = out_dpath / (key.replace('/', '-') + '.png')
             if verbose:
                 print('Save plot: ' + str(fpath))
             ax.figure.savefig(fpath)
@@ -575,6 +576,7 @@ class TensorboardPlotterCLI(scfg.DataConfig):
 if __name__ == '__main__':
     """
     CommandLine:
-        python -m callbacks.tensorboard_plotter .
+        python -m yolo.utils.callbacks.tensorboard_plotter .
+        python ~/code/YOLO-v9/yolo/utils/callbacks/tensorboard_plotter.py .
     """
     TensorboardPlotterCLI.main()

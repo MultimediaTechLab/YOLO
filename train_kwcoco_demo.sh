@@ -108,8 +108,8 @@ TEST_FPATH=$BUNDLE_DPATH/vidshapes_rgb_test/data.kwcoco.json
 # Grab a checkpoint
 CKPT_FPATH=$(python -c "if 1:
     import pathlib
-    ckpt_dpath = pathlib.Path('$TRAIN_DPATH') / 'train/kwcoco-demo/checkpoints'
-    checkpoints = sorted(ckpt_dpath.glob('*'))
+    root_dpath = pathlib.Path('$TRAIN_DPATH') / 'train/kwcoco-demo'
+    checkpoints = sorted(root_dpath.glob('lightning_logs/*/checkpoints/*'))
     print(checkpoints[-1])
 ")
 echo "CKPT_FPATH = $CKPT_FPATH"
