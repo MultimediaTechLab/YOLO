@@ -14,7 +14,7 @@ def main(cfg: DictConfig):
     from yolo.utils.logging_utils import setup
     callbacks, loggers, save_path = setup(cfg)
 
-    from lightning import Trainer
+    from yolo.utils.trainer import YoloTrainer as Trainer
     from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
     trainer = Trainer(
         accelerator=cfg.accelerator,
