@@ -156,7 +156,7 @@ class FastModelLoader:
         except FileNotFoundError:
             logger.warning(f"🈳 No found model weight at {self.model_path}")
             return None
-        
+
         return model_coreml
 
     def _create_tflite_model(self):
