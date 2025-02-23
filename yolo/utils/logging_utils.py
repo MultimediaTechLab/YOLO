@@ -370,6 +370,8 @@ def setup(cfg: Config):
     print(f'cfg.use_tensorboard={cfg.use_tensorboard}')
     if cfg.use_tensorboard:
         loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
+        from yolo.utils.callbacks.tensorboard_plotter import TensorboardPlotter
+        callbacks.append(TensorboardPlotter())
     if cfg.use_wandb:
         loggers.append(WandbLogger(project="YOLO", name=cfg.name, save_dir=save_path, id=None))
 

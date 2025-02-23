@@ -51,11 +51,27 @@ class YoloTrainer(lightning.Trainer):
         print(f'self.global_rank={self.global_rank}')
         if self.global_rank == 0:
             self._on_before_run_rank0()
+            self._handle_restart_details()
 
     def _on_before_run_rank0(self):
         import rich
         dpath = self.log_dpath
         rich.print(f"Trainer log dpath:\n\n[link={dpath}]{dpath}[/link]\n")
+
+    def _handle_restart_details(self):
+        """
+        Handle chores when restarting from a previous checkpoint.
+        """
+        if self.ckpt_path:
+            print('Detected that you are restarting from a previous checkpoint')
+            ckpt_path = ub.Path(self.ckpt_path)
+            assert ckpt_path.parent.name == 'checkpoints'
+            old_event_fpaths = list(ckpt_path.parent.parent.glob('events.out.tfevents.*'))
+            if len(old_event_fpaths):
+                print('Copying tensorboard events to new training directory directory')
+                for old_fpath in old_event_fpaths:
+                    new_fpath = self.log_dpath / old_fpath.name
+                    old_fpath.copy(new_fpath)
 
 
 class TorchGlobals(lightning.pytorch.callbacks.Callback):
@@ -78,7 +94,6 @@ class TorchGlobals(lightning.pytorch.callbacks.Callback):
 
     def before_setup_environment(self, trainer):
         import torch
-        print('Setup Torch Globals')
         float32_matmul_precision = self.float32_matmul_precision
         if float32_matmul_precision == 'default':
             float32_matmul_precision = None
@@ -96,5 +111,4 @@ class TorchGlobals(lightning.pytorch.callbacks.Callback):
             else:
                 float32_matmul_precision = None
         if float32_matmul_precision is not None:
-            print(f'Update: float32_matmul_precision={float32_matmul_precision}')
             torch.set_float32_matmul_precision(float32_matmul_precision)
