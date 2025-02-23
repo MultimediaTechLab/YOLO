@@ -19,9 +19,9 @@ class ModelExporter:
             self.model_path = model_path
         else:
             extention = self.format
-            if self.format == 'coreml':
-                extention = 'mlpackage'
-                
+            if self.format == "coreml":
+                extention = "mlpackage"
+
             self.model_path = f"{Path(self.cfg.weight).stem}.{extention}"
 
         self.output_names: List[str] = [
@@ -36,9 +36,7 @@ class ModelExporter:
             "9_bbox_deltas_large",
         ]
 
-        self.output_names: List[str] = [
-            "preds_cls", "preds_anc", "preds_box"
-        ]
+        self.output_names: List[str] = ["preds_cls", "preds_anc", "preds_box"]
 
     def export_onnx(self, dynamic_axes: Optional[Dict[str, Dict[int, str]]] = None, model_path: Optional[str] = None):
         logger.info(f":package: Exporting model to onnx format")
@@ -89,12 +87,15 @@ class ModelExporter:
         exported_program = torch.export.export(self.model, example_inputs)
 
         import logging
+
         import coremltools as ct
 
         # Convert to Core ML program using the Unified Conversion API.
         logging.getLogger("coremltools").disabled = True
 
-        model_from_export = ct.convert(exported_program, outputs=[ct.TensorType(name=name) for name in self.output_names], convert_to="mlprogram")
+        model_from_export = ct.convert(
+            exported_program, outputs=[ct.TensorType(name=name) for name in self.output_names], convert_to="mlprogram"
+        )
 
         model_from_export.save(self.model_path)
         logger.info(f":white_check_mark: Model exported to coreml format {self.model_path}")

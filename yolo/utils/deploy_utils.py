@@ -21,8 +21,8 @@ class FastModelLoader:
             cfg.weight = Path("weights") / f"{cfg.model.name}.pt"
 
         extention = self.compiler
-        if self.compiler == 'coreml':
-            extention = 'mlpackage'
+        if self.compiler == "coreml":
+            extention = "mlpackage"
 
         self.model_path = f"{Path(cfg.weight).stem}.{extention}"
 
@@ -139,10 +139,10 @@ class FastModelLoader:
             model_outputs = []
             predictions = self.predict({"x": x})
 
-            output_keys = ['preds_cls', 'preds_anc', 'preds_box']
+            output_keys = ["preds_cls", "preds_anc", "preds_box"]
             for key in output_keys:
                 model_outputs.append(torch.from_numpy(predictions[key]).to(device))
-            
+
             return model_outputs
 
         models.MLModel.__call__ = coreml_forward
