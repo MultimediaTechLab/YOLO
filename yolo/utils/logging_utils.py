@@ -354,8 +354,7 @@ def setup(cfg: Config):
         callbacks.append(YOLORichModelSummary())
 
     if 1:
-        from yolo.utils.callbacks import TorchGlobals
-        callbacks.append(TorchGlobals(float32_matmul_precision='auto'))
+        import lightning
         checkpoint_init_args = {
             'monitor': 'train_loss',
             'mode': 'min',
@@ -363,12 +362,12 @@ def setup(cfg: Config):
             'filename': '{epoch:04d}-{step:06d}-trainloss{train_loss:.3f}.ckpt',
             'save_last': True,
         }
-        import lightning
         checkpointer = lightning.pytorch.callbacks.ModelCheckpoint(**checkpoint_init_args)
         callbacks.append(checkpointer)
 
     callbacks.append(ImageLogger())
 
+    print(f'cfg.use_tensorboard={cfg.use_tensorboard}')
     if cfg.use_tensorboard:
         loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
     if cfg.use_wandb:

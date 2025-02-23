@@ -79,35 +79,36 @@ validation: $VALI_FPATH
 
 $CLASS_YAML
 "
-
 echo "$CONFIG_YAML" > "$DATASET_CONFIG_FPATH"
 
-
+TRAIN_DPATH="$BUNDLE_DPATH/kwcoco-demo-train-dir"
 # This might only work in development mode, otherwise we will get site packages
 # That still might be fine, but we do want to fix this to run anywhere.
 cd "$REPO_DPATH"
 LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
     task=train \
     dataset=kwcoco-demo \
+    use_tensorboard=True \
     use_wandb=False \
-    out_path="$BUNDLE_DPATH"/training \
+    out_path="$TRAIN_DPATH" \
     name=kwcoco-demo \
     cpu_num=0 \
     device=0 \
     accelerator=auto \
     task.data.batch_size=2 \
     "image_size=[640, 640]" \
-    task.optimizer.args.lr=0.0003
+    task.optimizer.args.lr=0.03
 
 
 ### show how to run inference
 
 BUNDLE_DPATH=$HOME/demo-yolo-kwcoco-train
+TRAIN_DPATH="$BUNDLE_DPATH/kwcoco-demo-train-dir"
 TEST_FPATH=$BUNDLE_DPATH/vidshapes_rgb_test/data.kwcoco.json
 # Grab a checkpoint
 CKPT_FPATH=$(python -c "if 1:
     import pathlib
-    ckpt_dpath = pathlib.Path('$BUNDLE_DPATH') / 'training/train/kwcoco-demo/checkpoints'
+    ckpt_dpath = pathlib.Path('$TRAIN_DPATH') / 'train/kwcoco-demo/checkpoints'
     checkpoints = sorted(ckpt_dpath.glob('*'))
     print(checkpoints[-1])
 ")
@@ -133,9 +134,11 @@ python yolo/lazy.py \
 ### Show how to run validation
 
 # Grab a checkpoint
+BUNDLE_DPATH=$HOME/demo-yolo-kwcoco-train
+TRAIN_DPATH="$BUNDLE_DPATH/kwcoco-demo-train-dir"
 CKPT_FPATH=$(python -c "if 1:
     import pathlib
-    ckpt_dpath = pathlib.Path('$BUNDLE_DPATH') / 'training/train/kwcoco-demo/checkpoints'
+    ckpt_dpath = pathlib.Path('$TRAIN_DPATH') / 'train/kwcoco-demo/checkpoints'
     checkpoints = sorted(ckpt_dpath.glob('*'))
     print(checkpoints[-1])
 ")
@@ -146,7 +149,7 @@ LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
     task=validation \
     dataset=kwcoco-demo \
     use_wandb=False \
-    out_path="$BUNDLE_DPATH"/training \
+    out_path="$TRAIN_DPATH" \
     name=kwcoco-demo \
     cpu_num=0 \
     device=0 \
