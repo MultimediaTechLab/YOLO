@@ -85,7 +85,7 @@ def prepare_dataset(dataset_cfg: DatasetConfig, task: str):
 def prepare_weight(download_link: Optional[str] = None, weight_path: Path = Path("v9-c.pt")):
     weight_name = weight_path.name
     if download_link is None:
-        download_link = "https://github.com/WongKinYiu/yolov9mit/releases/download/v1.0-alpha/"
+        download_link = "https://github.com/MultimediaTechLab/YOLO/releases/download/v1.0-alpha/"
     weight_link = f"{download_link}{weight_name}"
 
     if not weight_path.parent.is_dir():

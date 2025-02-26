@@ -120,6 +120,20 @@ class YOLORichProgressBar(RichProgressBar):
 
     @override
     @rank_zero_only
+    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
+        if self.is_disabled:
+            return
+        if trainer.sanity_checking:
+            self._update(self.val_sanity_progress_bar_id, batch_idx + 1)
+        elif self.val_progress_bar_id is not None:
+            self._update(self.val_progress_bar_id, batch_idx + 1)
+            _, mAP = outputs
+            mAP_desc = f" mAP :{mAP['map']*100:6.2f} | mAP50 :{mAP['map_50']*100:6.2f} |"
+            self.progress.update(self.val_progress_bar_id, description=f"[green]Valid [white]|{mAP_desc}")
+        self.refresh()
+
+    @override
+    @rank_zero_only
     def on_train_end(self, trainer: "Trainer", pl_module: "LightningModule") -> None:
         self._update_metrics(trainer, pl_module)
         self.progress.remove_task(self.train_progress_bar_id)
@@ -213,8 +227,9 @@ class ImageLogger(Callback):
         if batch_idx != 0:
             return
         batch_size, images, targets, rev_tensor, img_paths = batch
+        predicts, _ = outputs
         gt_boxes = targets[0] if targets.ndim == 3 else targets
-        pred_boxes = outputs[0] if isinstance(outputs, list) else outputs
+        pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
         images = [images[0]]
         step = trainer.current_epoch
         for logger in trainer.loggers:

@@ -1,0 +1,132 @@
+name: rd-9c
+
+anchor:
+  reg_max: 16
+  strides: [8, 16, 32]
+
+model:
+  backbone:
+    - Conv:
+        args: {out_channels: 64, kernel_size: 3, stride: 2}
+        source: 0
+    - Conv:
+        args: {out_channels: 128, kernel_size: 3, stride: 2}
+    - RepNCSPELAN:
+        args: {out_channels: 256, part_channels: 128}
+
+    - ADown:
+        args: {out_channels: 256}
+    - RepNCSPELAND:
+        args: {out_channels: 512, part_channels: 256}
+        tags: B3
+
+    - ADown:
+        args: {out_channels: 512}
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: B4
+
+    - ADown:
+        args: {out_channels: 512}
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: B5
+
+  neck:
+    - SPPELAN:
+        args: {out_channels: 512}
+        tags: N3
+
+    - UpSample:
+        args: {scale_factor: 2, mode: nearest}
+    - Concat:
+        source: [-1, B4]
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: N4
+
+    - UpSample:
+        args: {scale_factor: 2, mode: nearest}
+    - Concat:
+        source: [-1, B3]
+
+  head:
+    - RepNCSPELAN:
+        args: {out_channels: 256, part_channels: 256}
+        tags: P3
+
+    - ADown:
+        args: {out_channels: 256}
+    - Concat:
+        source: [-1, N4]
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: P4
+
+    - ADown:
+        args: {out_channels: 512}
+    - Concat:
+        source: [-1, N3]
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: P5
+
+  detection:
+    - MultiheadDetection:
+        source: [P3, P4, P5]
+        tags: Main
+        output: True
+
+  auxiliary:
+    - CBLinear:
+        source: B3
+        args: {out_channels: [256]}
+        tags: R3
+    - CBLinear:
+        source: B4
+        args: {out_channels: [256, 512]}
+        tags: R4
+    - CBLinear:
+        source: B5
+        args: {out_channels: [256, 512, 512]}
+        tags: R5
+
+    - Conv:
+        args: {out_channels: 64, kernel_size: 3, stride: 2}
+        source: 0
+    - Conv:
+        args: {out_channels: 128, kernel_size: 3, stride: 2}
+    - RepNCSPELAN:
+        args: {out_channels: 256, part_channels: 128}
+
+    - ADown:
+        args: {out_channels: 256}
+    - CBFuse:
+        source: [R3, R4, R5, -1]
+        args: {index: [0, 0, 0]}
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 256}
+        tags: A3
+
+    - ADown:
+        args: {out_channels: 512}
+    - CBFuse:
+        source: [R4, R5, -1]
+        args: {index: [1, 1]}
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: A4
+
+    - ADown:
+        args: {out_channels: 512}
+    - CBFuse:
+        source: [R5, -1]
+        args: {index: [2]}
+    - RepNCSPELAN:
+        args: {out_channels: 512, part_channels: 512}
+        tags: A5
+
+    - MultiheadDetection:
+        source: [A3, A4, A5]
+        tags: AUX
+        output: True

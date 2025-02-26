@@ -495,3 +495,36 @@ class ImplicitM(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.implicit * x
+
+
+class DConv(nn.Module):
+    def __init__(self, in_channels=512, alpha=0.8, atoms=4096):
+        super().__init__()
+        self.alpha = alpha
+
+        self.CG = Conv(in_channels, atoms, 1)
+        self.GIE = Conv(atoms, atoms, 5, groups=atoms, activation=False)
+        self.D = Conv(atoms, in_channels, 1, activation=False)
+
+    def PONO(self, x):
+        mean = x.mean(dim=1, keepdim=True)
+        std = x.std(dim=1, keepdim=True)
+        x = (x - mean) / (std + 1e-5)
+        return x
+
+    def forward(self, r):
+        x = self.CG(r)
+        x = self.GIE(x)
+        x = self.PONO(x)
+        x = self.D(x)
+        return self.alpha * x + (1 - self.alpha) * r
+
+
+class RepNCSPELAND(RepNCSPELAN):
+    def __init__(self, *args, rd_args={}, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dconv = DConv(**rd_args)
+
+    def forward(self, x):
+        x = super().forward(x)
+        return self.dconv(x)

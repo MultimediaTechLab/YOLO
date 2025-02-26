@@ -166,6 +166,7 @@ class YOLOLayer(nn.Module):
     tags: str
     layer_type: str
     usable: bool
+    external: Optional[dict]
 
 
 IDX_TO_ID = [
