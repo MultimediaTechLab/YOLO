@@ -234,7 +234,7 @@ def create_dataloader(data_cfg: DataConfig, dataset_cfg: DatasetConfig, task: st
 
 
 class StreamDataLoader:
-    def __init__(self, data_cfg: DataConfig):
+    def __init__(self, data_cfg: DataConfig, asynchronous: bool = True):
         self.source = data_cfg.source
         self.running = True
         self.is_stream = isinstance(self.source, int) or str(self.source).lower().startswith("rtmp://")
@@ -249,8 +249,12 @@ class StreamDataLoader:
         else:
             self.source = Path(self.source)
             self.queue = Queue()
-            self.thread = Thread(target=self.load_source)
-            self.thread.start()
+
+            if asynchronous:
+                self.thread = Thread(target=self.load_source)
+                self.thread.start()
+            else:
+                self.load_source()
 
     def load_source(self):
         if self.source.is_dir():  # image folder
@@ -272,20 +276,22 @@ class StreamDataLoader:
         image = Image.open(image_path).convert("RGB")
         if image is None:
             raise ValueError(f"Error loading image: {image_path}")
-        self.process_frame(image)
+        self.process_frame(image, image_path)
 
     def load_video_file(self, video_path):
         import cv2
 
         cap = cv2.VideoCapture(str(video_path))
+        frame_idx = 0
         while self.running:
             ret, frame = cap.read()
             if not ret:
                 break
-            self.process_frame(frame)
+            self.process_frame(frame, f"{video_path.stem}_frame{frame_idx:04d}.png")
+            frame_idx += 1
         cap.release()
 
-    def process_frame(self, frame):
+    def process_frame(self, frame, image_path):
         if isinstance(frame, np.ndarray):
             # TODO: we don't need cv2
             import cv2
@@ -297,9 +303,9 @@ class StreamDataLoader:
         frame = frame[None]
         rev_tensor = rev_tensor[None]
         if not self.is_stream:
-            self.queue.put((frame, rev_tensor, origin_frame))
+            self.queue.put((frame, rev_tensor, origin_frame, image_path))
         else:
-            self.current_frame = (frame, rev_tensor, origin_frame)
+            self.current_frame = (frame, rev_tensor, origin_frame, image_path)
 
     def __iter__(self) -> Generator[Tensor, None, None]:
         return self
@@ -310,7 +316,7 @@ class StreamDataLoader:
             if not ret:
                 self.stop()
                 raise StopIteration
-            self.process_frame(frame)
+            self.process_frame(frame, "stream_frame.png")
             return self.current_frame
         else:
             try:

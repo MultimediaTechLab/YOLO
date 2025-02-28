@@ -6,7 +6,7 @@ from torchmetrics.detection import MeanAveragePrecision
 
 from yolo.config.config import Config
 from yolo.model.yolo import create_model
-from yolo.tools.data_loader import create_dataloader
+from yolo.tools.data_loader import StreamDataLoader, create_dataloader
 from yolo.tools.drawer import draw_bboxes
 from yolo.tools.loss_functions import create_loss_function
 from yolo.utils.bounding_box_utils import create_converter, to_metrics_format
@@ -112,7 +112,9 @@ class InferenceModel(BaseModel):
         super().__init__(cfg)
         self.cfg = cfg
         # TODO: Add FastModel
-        self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
+        # StreamDataLoader has to be synchronous, otherwise not all images are loaded
+        # TODO: Make this load in  parallel
+        self.predict_loader = StreamDataLoader(cfg.task.data, asynchronous=False)
 
     def setup(self, stage):
         self.vec2box = create_converter(
@@ -124,15 +126,29 @@ class InferenceModel(BaseModel):
         return self.predict_loader
 
     def predict_step(self, batch, batch_idx):
-        images, rev_tensor, origin_frame = batch
+        images, rev_tensor, origin_frame, image_path = batch
         predicts = self.post_process(self(images), rev_tensor=rev_tensor)
         img = draw_bboxes(origin_frame, predicts, idx2label=self.cfg.dataset.class_list)
+
         if getattr(self.predict_loader, "is_stream", None):
             fps = self._display_stream(img)
         else:
             fps = None
+
         if getattr(self.cfg.task, "save_predict", None):
             self._save_image(img, batch_idx)
+
+            output_txt_file = Path(getattr(self.cfg, "out_path")) / f"results.txt"
+
+            # save predics to file img.name .txt, space separated
+            with open(output_txt_file, "a") as f:
+                for bboxes in predicts:
+                    for bbox in bboxes:
+                        class_id, x_min, y_min, x_max, y_max, *conf = [float(val) for val in bbox]
+                        f.write(f"{image_path.name} {int(class_id)} {x_min} {y_min} {x_max} {y_max} {conf[0]}\n")
+
+            print(f"💾 Saved predictions at {output_txt_file}")
+
         return img, fps
 
     def _save_image(self, img, batch_idx):
