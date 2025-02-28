@@ -244,6 +244,7 @@ class StreamDataLoader:
 
         if self.is_stream:
             import cv2
+
             self.cap = cv2.VideoCapture(self.source)
         else:
             self.source = Path(self.source)
