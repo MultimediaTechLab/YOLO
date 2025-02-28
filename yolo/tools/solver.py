@@ -6,7 +6,7 @@ from torchmetrics.detection import MeanAveragePrecision
 
 from yolo.config.config import Config
 from yolo.model.yolo import create_model
-from yolo.tools.data_loader import create_dataloader
+from yolo.tools.data_loader import StreamDataLoader, create_dataloader
 from yolo.tools.drawer import draw_bboxes
 from yolo.tools.loss_functions import create_loss_function
 from yolo.utils.bounding_box_utils import create_converter, to_metrics_format
@@ -112,7 +112,9 @@ class InferenceModel(BaseModel):
         super().__init__(cfg)
         self.cfg = cfg
         # TODO: Add FastModel
-        self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
+        # StreamDataLoader has to be synchronous, otherwise not all images are loaded
+        # TODO: Make this load in  parallel
+        self.predict_loader = StreamDataLoader(cfg.task.data, asynchronous=False)
 
     def setup(self, stage):
         self.vec2box = create_converter(

@@ -234,7 +234,7 @@ def create_dataloader(data_cfg: DataConfig, dataset_cfg: DatasetConfig, task: st
 
 
 class StreamDataLoader:
-    def __init__(self, data_cfg: DataConfig):
+    def __init__(self, data_cfg: DataConfig, asynchronous: bool = True):
         self.source = data_cfg.source
         self.running = True
         self.is_stream = isinstance(self.source, int) or str(self.source).lower().startswith("rtmp://")
@@ -244,13 +244,16 @@ class StreamDataLoader:
 
         if self.is_stream:
             import cv2
-
             self.cap = cv2.VideoCapture(self.source)
         else:
             self.source = Path(self.source)
             self.queue = Queue()
-            self.thread = Thread(target=self.load_source)
-            self.thread.start()
+
+            if asynchronous:
+                self.thread = Thread(target=self.load_source)
+                self.thread.start()
+            else:
+                self.load_source()
 
     def load_source(self):
         if self.source.is_dir():  # image folder
