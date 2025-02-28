@@ -147,9 +147,9 @@ class YOLO(nn.Module):
         for model_key, model_weight in model_state_dict.items():
 
             weights_key = model_key
-            if weights_key not in weights:  #.ckpt
+            if weights_key not in weights:  # .ckpt
                 weights_key = "model." + model_key
-            if weights_key not in weights:  #.pt old
+            if weights_key not in weights:  # .pt old
                 weights_key = model_key[6:]
             if weights_key not in weights:
                 error_dict["Not Found"].add(tuple(model_key.split(".")[:-2]))

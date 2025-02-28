@@ -129,7 +129,7 @@ class InferenceModel(BaseModel):
         images, rev_tensor, origin_frame, image_path = batch
         predicts = self.post_process(self(images), rev_tensor=rev_tensor)
         img = draw_bboxes(origin_frame, predicts, idx2label=self.cfg.dataset.class_list)
-        
+
         if getattr(self.predict_loader, "is_stream", None):
             fps = self._display_stream(img)
         else:
@@ -141,14 +141,14 @@ class InferenceModel(BaseModel):
             output_txt_file = Path(getattr(self.cfg, "out_path")) / f"results.txt"
 
             # save predics to file img.name .txt, space separated
-            with open(output_txt_file, 'a') as f:
+            with open(output_txt_file, "a") as f:
                 for bboxes in predicts:
                     for bbox in bboxes:
                         class_id, x_min, y_min, x_max, y_max, *conf = [float(val) for val in bbox]
                         f.write(f"{image_path.name} {int(class_id)} {x_min} {y_min} {x_max} {y_max} {conf[0]}\n")
 
             print(f"💾 Saved predictions at {output_txt_file}")
-            
+
         return img, fps
 
     def _save_image(self, img, batch_idx):
