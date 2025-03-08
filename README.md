@@ -37,7 +37,7 @@ yolo task.data.source=0 # source could be a single file, video, image folder, we
 
 ## Installation
 
-To get started using YOLOv9's developer mode, we recommand you clone this repository and install the required dependencies:
+To get started using YOLOv9's developer mode, we recommend you clone this repository and install the required dependencies:
 
 ```shell
 git clone git@github.com:WongKinYiu/YOLO.git
