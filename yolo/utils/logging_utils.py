@@ -127,7 +127,7 @@ class YOLORichProgressBar(RichProgressBar):
             self._update(self.val_sanity_progress_bar_id, batch_idx + 1)
         elif self.val_progress_bar_id is not None:
             self._update(self.val_progress_bar_id, batch_idx + 1)
-            _, mAP = outputs
+            mAP = outputs['mAP']
             mAP_desc = f" mAP :{mAP['map']*100:6.2f} | mAP50 :{mAP['map_50']*100:6.2f} |"
             self.progress.update(self.val_progress_bar_id, description=f"[green]Valid [white]|{mAP_desc}")
         self.refresh()
@@ -227,8 +227,7 @@ class ImageLogger(Callback):
         # Number of validation / training batches to draw per epoch
         self.num_draw_validation_per_epoch = 1
         self.num_draw_training_per_epoch = 1
-        # self.max_items_per_batch = float('inf')  # maximum number of items to draw per batch
-        self.max_items_per_batch = 8
+        self.max_items_per_batch = float('inf')  # maximum number of items to draw per batch
         super().__init__()
 
     def on_validation_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
