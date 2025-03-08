@@ -112,6 +112,7 @@ class YoloDataset(Dataset):
                 # Ensure all images have populated sizes
                 coco_dset._ensure_imgsize()
 
+            # FIXME: do empty images make sense for training YOLO?
             ALLOW_EMPTY_IMAGES = 0
 
             # Build the expected output
