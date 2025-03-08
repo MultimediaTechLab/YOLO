@@ -268,7 +268,9 @@ class ImageLogger(Callback):
                 true_dets = tensor_to_kwimage(gt_boxes).numpy()
                 pred_dets = tensor_to_kwimage(pred_boxes).numpy()
                 pred_dets = pred_dets.non_max_supress(thresh=0.3)
-                # pred_dets = pred_dets.compress(pred_dets.scores > 0.1)
+                pred_dets_2 = pred_dets.compress(pred_dets.scores > 0.01)
+                if len(pred_dets_2) > 0:
+                    pred_dets = pred_dets_2
 
                 raw_canvas = image_hwc.copy()
                 true_canvas = true_dets.draw_on(raw_canvas.copy(), color='green')
@@ -281,7 +283,7 @@ class ImageLogger(Callback):
                     raw_canvas, true_canvas, pred_canvas
                 ], axis=1, pad=3)
 
-                fname = f'img_{epoch:04d}_{batch_idx:04d}.jpg'
+                fname = f'img_{epoch:04d}_{bx:04d}.jpg'
                 fpath = out_dpath / fname
                 kwimage.imwrite(fpath, canvas)
 
@@ -372,7 +374,9 @@ def setup(cfg: Config):
 
     print(f'cfg.use_tensorboard={cfg.use_tensorboard}')
     if cfg.use_tensorboard:
-        loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
+        print(f'save_path={save_path}')
+        # loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
+        loggers.append(TensorBoardLogger(save_path))
         from yolo.utils.callbacks.tensorboard_plotter import TensorboardPlotter
         callbacks.append(TensorboardPlotter())
     if cfg.use_wandb:

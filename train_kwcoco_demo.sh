@@ -85,6 +85,7 @@ TRAIN_DPATH="$BUNDLE_DPATH/kwcoco-demo-train-dir"
 # This might only work in development mode, otherwise we will get site packages
 # That still might be fine, but we do want to fix this to run anywhere.
 cd "$REPO_DPATH"
+export CUDA_VISIBLE_DEVICES="1,"
 LOG_BATCH_VIZ_TO_DISK=1 python -m yolo.lazy \
     task=train \
     dataset=kwcoco-demo \

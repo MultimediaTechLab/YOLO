@@ -239,11 +239,13 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
     Returns:
         YOLO: An instance of the model defined by the given configuration.
     """
+    logger.info = print
+    logger.info('CREATE MODEL')
     OmegaConf.set_struct(model_cfg, False)
     model = YOLO(model_cfg, class_num)
     if weight_path:
         logger.info('🏋 Initializing weights')
-        if weight_path == True:
+        if weight_path is True:
             weight_path = Path("weights") / f"{model_cfg.name}.pt"
         elif isinstance(weight_path, str):
             weight_path = Path(weight_path)
@@ -257,4 +259,5 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
             logger.info(":white_check_mark: Success load model & weight")
     else:
         logger.info(":white_check_mark: Success load model without weights")
+    logger.info('CREATED MODEL')
     return model
