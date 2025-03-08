@@ -140,10 +140,14 @@ class YoloDataset(Dataset):
         for seg_data in seg_data_one_img:
             cls = seg_data[0]
             points = np.array(seg_data[1:]).reshape(-1, 2)
-            valid_points = points[(points >= 0) & (points <= 1)].reshape(-1, 2)
-            if valid_points.size > 1:
-                bbox = torch.tensor([cls, *valid_points.min(axis=0), *valid_points.max(axis=0)])
-                bboxes.append(bbox)
+
+            if not np.any((points >= 0) & (points <= 1)):
+                continue
+
+            valid_points = np.clip(points, 0, 1)
+
+            bbox = torch.tensor([cls, *valid_points.min(axis=0), *valid_points.max(axis=0)])
+            bboxes.append(bbox)
 
         if bboxes:
             return torch.stack(bboxes)
