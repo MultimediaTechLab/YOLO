@@ -33,7 +33,7 @@ class YoloDataset(Dataset):
         self.dynamic_shape = getattr(data_cfg, "dynamic_shape", False)
         self.base_size = mean(self.image_size)
 
-        transforms = [getattr(data_augmentation, aug)(prob) for aug, prob in augment_cfg.items()]
+        transforms = [getattr(data_augmentation, aug)(prob) for aug, prob in augment_cfg.items() if prob]
         self.transform = AugmentationComposer(transforms, self.image_size, self.base_size)
         self.transform.get_more_data = self.get_more_data
 
