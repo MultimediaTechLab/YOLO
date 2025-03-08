@@ -226,6 +226,14 @@ class ImageLogger(Callback):
     def on_validation_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
         if batch_idx != 0:
             return
+        self.draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx)
+
+    def on_training_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
+        if batch_idx != 0:
+            return
+        self.draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx)
+
+    def draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx):
         batch_size, images, targets, rev_tensor, img_paths = batch
         # predicts, _ = outputs
         # gt_boxes = targets[0] if targets.ndim == 3 else targets
@@ -251,9 +259,10 @@ class ImageLogger(Callback):
 
             # TODO:
             # get a batter output path
-            import pathlib
-            root_dpath = pathlib.Path(trainer.default_root_dir)
-            out_dpath = root_dpath / 'debug_images' / trainer.state.stage.name
+            # import pathlib
+            # root_dpath = pathlib.Path(trainer.default_root_dir)
+            root_dpath = trainer.log_dpath
+            out_dpath = root_dpath / 'monitor/batches' / trainer.state.stage.name
             out_dpath.mkdir(exist_ok=True, parents=True)
             epoch = trainer.current_epoch
 
