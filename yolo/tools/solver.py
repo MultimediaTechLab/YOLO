@@ -47,11 +47,16 @@ class ValidateModel(BaseModel):
     def validation_step(self, batch, batch_idx):
         batch_size, images, targets, rev_tensor, img_paths = batch
         H, W = images.shape[2:]
-        predicts = self.post_process(self.ema(images), image_size=[W, H])
+        raw_predicts = self.ema(images)
+        predicts = self.post_process(raw_predicts, image_size=[W, H])
         mAP = self.metric(
             [to_metrics_format(predict) for predict in predicts], [to_metrics_format(target) for target in targets]
         )
-        return predicts, mAP
+        outputs = {
+            'predicts': predicts,
+            'mAP': mAP,
+        }
+        return outputs
 
     def on_validation_epoch_end(self):
         epoch_metrics = self.metric.compute()
@@ -69,6 +74,9 @@ class TrainModel(ValidateModel):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         self.cfg = cfg
+
+        # Flag that lets plugins communicate with the model
+        self.request_draw = False
 
         # TODO: if we defer creating the model until the dataset is loaded, we
         # can introspect the number of categories and other things to make user
@@ -91,9 +99,9 @@ class TrainModel(ValidateModel):
     def training_step(self, batch, batch_idx):
         lr_dict = self.trainer.optimizers[0].next_batch()
         batch_size, images, targets, *_ = batch
-        predicts = self(images)
-        aux_predicts = self.vec2box(predicts["AUX"])
-        main_predicts = self.vec2box(predicts["Main"])
+        raw_predicts = self(images)
+        aux_predicts = self.vec2box(raw_predicts["AUX"])
+        main_predicts = self.vec2box(raw_predicts["Main"])
         loss, loss_item = self.loss_fn(aux_predicts, main_predicts, targets)
         self.log_dict(
             loss_item,
@@ -106,7 +114,13 @@ class TrainModel(ValidateModel):
         total_loss = loss * batch_size
         stage = self.trainer.state.stage.value
         self.log(f'{stage}_loss', total_loss, prog_bar=True, batch_size=batch_size)
-        return total_loss
+        output = {}
+        output['loss'] = total_loss
+        if self.request_draw:
+            H, W = images.shape[2:]
+            predicts = self.post_process(raw_predicts, image_size=[W, H])
+            output['predicts'] = predicts
+        return output
 
     def configure_optimizers(self):
         optimizer = create_optimizer(self.model, self.cfg.task.optimizer)

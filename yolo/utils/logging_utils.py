@@ -223,19 +223,42 @@ class YOLORichModelSummary(RichModelSummary):
 
 
 class ImageLogger(Callback):
-    def on_validation_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
-        if batch_idx != 0:
-            return
-        self.draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx)
+    def __init__(self):
+        # Number of validation / training batches to draw per epoch
+        self.num_draw_validation_per_epoch = 1
+        self.num_draw_training_per_epoch = 1
+        # self.max_items_per_batch = float('inf')  # maximum number of items to draw per batch
+        self.max_items_per_batch = 8
+        super().__init__()
 
-    def on_training_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
-        if batch_idx != 0:
+    def on_validation_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
+        if batch_idx >= self.num_draw_validation_per_epoch:
             return
-        self.draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx)
+        self.draw_batch_image(trainer, pl_module, outputs, batch, batch_idx)
+
+    def on_train_batch_start(self, trainer: Trainer, pl_module, batch, batch_idx):
+        # We need to let the trainer know that we would like to draw its
+        # output.
+        if hasattr(trainer.model, 'request_draw'):
+            if batch_idx >= self.num_draw_training_per_epoch:
+                pl_module.request_draw = False
+            else:
+                pl_module.request_draw = True
+
+    def on_train_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
+        if batch_idx >= self.num_draw_training_per_epoch:
+            return
+        self.draw_batch_image(trainer, pl_module, outputs, batch, batch_idx)
 
     def draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx):
         batch_size, images, targets, rev_tensor, img_paths = batch
-        # predicts, _ = outputs
+        predicts = outputs.get('predicts', None)
+        if predicts is None:
+            # Cannot draw what is not provided
+            print('Warning, attempted to draw batch, '
+                  'but the model did not provide the correct outputs')
+            return None
+
         # gt_boxes = targets[0] if targets.ndim == 3 else targets
         # pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
         # images = [images[0]]
@@ -245,7 +268,7 @@ class ImageLogger(Callback):
             if isinstance(_logger, WandbLogger):
                 # FIXME: not robust to configured image sizes, need to know
                 # that info.
-                for image, gt_boxes, pred_boxes in zip(images, targets, outputs):
+                for image, gt_boxes, pred_boxes in zip(images, targets, predicts):
                     _logger.log_image("Input Image", [image], step=step)
                     _logger.log_image("Ground Truth", [image], step=step, boxes=[log_bbox(gt_boxes)])
                     _logger.log_image("Prediction", [image], step=step, boxes=[log_bbox(pred_boxes)])
@@ -266,10 +289,12 @@ class ImageLogger(Callback):
             out_dpath.mkdir(exist_ok=True, parents=True)
             epoch = trainer.current_epoch
 
-            for bx in range(len(images)):
+            num_draw = min(len(images), self.max_items_per_batch)
+
+            for bx in range(num_draw):
                 image_chw = images[bx].data.cpu().numpy()
                 gt_boxes = targets[bx]
-                pred_boxes = outputs[bx]
+                pred_boxes = predicts[bx]
                 image_hwc = einops.rearrange(image_chw, 'c h w -> h w c')
                 image_hwc = kwimage.ensure_uint255(image_hwc)
 
@@ -292,7 +317,7 @@ class ImageLogger(Callback):
                     raw_canvas, true_canvas, pred_canvas
                 ], axis=1, pad=3)
 
-                fname = f'img_{epoch:04d}_{bx:04d}.jpg'
+                fname = f'img_epoch{epoch:04d}_batch{batch_idx:04d}_bx{bx:04d}.jpg'
                 fpath = out_dpath / fname
                 kwimage.imwrite(fpath, canvas)
 
