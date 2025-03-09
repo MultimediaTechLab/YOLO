@@ -33,6 +33,14 @@ def lerp(start: float, end: float, step: Union[int, float], total: int = 1):
 
     Returns:
         float: The interpolated value.
+
+    Example:
+        >>> # from big to small
+        >>> lerp(1, 0, 10, 100)
+        0.9
+        >>> # from small to big
+        >>> lerp(0, 1, 10, 100)
+        0.1
     """
     return start + (end - start) * step / total
 
@@ -80,45 +88,124 @@ def create_optimizer(model: YOLO, optim_cfg: OptimizerConfig) -> Optimizer:
         An instance of the optimizer configured according to the provided settings.
     """
     optimizer_class: Type[Optimizer] = getattr(torch.optim, optim_cfg.type)
+    optim_args = optim_cfg.args
 
-    bias_params = [p for name, p in model.named_parameters() if "bias" in name]
-    norm_params = [p for name, p in model.named_parameters() if "weight" in name and "bn" in name]
-    conv_params = [p for name, p in model.named_parameters() if "weight" in name and "bn" not in name]
+    # Note the arguments that the optimizer class actually accepts
+    valid_optim_args = set(optim_args.keys())
 
-    model_parameters = [
-        {"params": bias_params, "momentum": 0.937, "weight_decay": 0},
-        {"params": conv_params, "momentum": 0.937},
-        {"params": norm_params, "momentum": 0.937, "weight_decay": 0},
+    named_params = dict(model.named_parameters())
+
+    named_groups = {}
+
+    # Define groups that will have their optimizer params overwritten
+    # (NOTE: these params are valid for SGD, but may not be for other
+    # optimizers)
+    named_groups['bias'] = {name for name in named_params if 'bias' in name}
+    named_groups['norm'] = {name for name in named_params if "weight" in name and "bn" in name}
+    named_groups['conv'] = {name for name in named_params if "weight" in name and "bn" not in name}
+
+    if __debug__:
+        import itertools as it
+        # Check that all groups are disjoint
+        for g1, g2 in it.combinations(named_groups.values(), 2):
+            assert len(g1 & g2) == 0
+        # Check that all parmeters are in a group
+        used = set.union(*named_groups.values())
+        all_param_name = set(named_params.keys())
+        unused = all_param_name - used
+        assert len(unused) == 0
+
+    named_group_overrides = {
+        'bias': {"momentum": 0.937, "weight_decay": 0},
+        'conv': {"momentum": 0.937},
+        'norm': {"momentum": 0.937, "weight_decay": 0},
+    }
+
+    # Remove any of the overrides that are valid arguments to the optimizer.
+    named_group_overrides = {
+        name: {k: v for k, v in overrides.items() if k in valid_optim_args}
+        for name, overrides in named_group_overrides.items()
+    }
+
+    # Map the group names to the parameter objects
+    named_groups = {
+        group_name: [named_params[name] for name in param_names]
+        for group_name, param_names in named_groups.items()
+    }
+
+    # Setup the input to standard torch optimizers
+    param_groups = [
+        {"name": name, "params": params, **named_group_overrides[name]}
+        for name, params in named_groups.items()
     ]
 
+    # TODO: load momentum from config instead a fix number
+    warmup_schedule = {
+        'momentum': {
+            'start': 0.8,     # Start Momemtum
+            'normal': 0.937,  # Normal Momemtum
+            'peak_epoch': 3   # The warm up epoch num
+        }
+    }
+
     def next_epoch(self, batch_num, epoch_idx):
+        """
+        Args:
+            batch_num (int): the number of batches in the epoch
+            epoch_id (int): the epoch index
+        """
         self.min_lr = self.max_lr
-        self.max_lr = [param["lr"] for param in self.param_groups]
-        # TODO: load momentum from config instead a fix number
-        #       0.937: Start Momentum
-        #       0.8  : Normal Momemtum
-        #       3    : The warm up epoch num
-        self.min_mom = lerp(0.8, 0.937, min(epoch_idx, 3), 3)
-        self.max_mom = lerp(0.8, 0.937, min(epoch_idx + 1, 3), 3)
+        self.max_lr = {
+            group['name']: group["lr"]
+            for group in self.param_groups
+        }
+        if 'momentum' in valid_optim_args:
+            mom0 = warmup_schedule['momentum']['start']
+            mom1 = warmup_schedule['momentum']['normal']
+            peak_epoch = warmup_schedule['momentum']['peak_epoch']
+            self.min_mom = lerp(mom0, mom1, min(epoch_idx, peak_epoch), peak_epoch)
+            self.max_mom = lerp(mom0, mom1, min(epoch_idx + 1, peak_epoch), peak_epoch)
         self.batch_num = batch_num
         self.batch_idx = 0
 
     def next_batch(self):
         self.batch_idx += 1
         lr_dict = dict()
-        for lr_idx, param_group in enumerate(self.param_groups):
-            min_lr, max_lr = self.min_lr[lr_idx], self.max_lr[lr_idx]
+        for param_group in self.param_groups:
+            group_name = param_group['name']
+            min_lr, max_lr = self.min_lr[group_name], self.max_lr[group_name]
             param_group["lr"] = lerp(min_lr, max_lr, self.batch_idx, self.batch_num)
-            param_group["momentum"] = lerp(self.min_mom, self.max_mom, self.batch_idx, self.batch_num)
-            lr_dict[f"LR/{lr_idx}"] = param_group["lr"]
-            lr_dict[f"momentum/{lr_idx}"] = param_group["momentum"]
+            lr_dict[f"LR/{group_name}"] = param_group["lr"]
+            if "momentum" in valid_optim_args:
+                param_group["momentum"] = lerp(self.min_mom, self.max_mom, self.batch_idx, self.batch_num)
+                lr_dict[f"momentum/{group_name}"] = param_group["momentum"]
         return lr_dict
 
+    # Monkey patch in methods/attributes for more control over the schedule.
     optimizer_class.next_batch = next_batch
     optimizer_class.next_epoch = next_epoch
+    optimizer = optimizer_class(param_groups, **optim_args)
+    optimizer.max_lr = {
+        'bias': 0.1,
+        'conv': 0,
+        'norm': 0,
+    }
 
-    optimizer = optimizer_class(model_parameters, **optim_cfg.args)
-    optimizer.max_lr = [0.1, 0, 0]
+    if 0:
+        # Test the schedule.
+        import ubelt as ub
+        batch_num = 3
+        for epoch_idx in range(3):
+            optimizer.next_epoch(batch_num, epoch_idx)
+            ignore_names = {'defaults', 'param_groups', 'state'}
+            ignore_names |= {k for k in optimizer.__dict__.keys() if k.startswith('_')}
+            optim_dict = {k: v for k, v in optimizer.__dict__.items() if k not in ignore_names}
+            print(f'optim_dict = {ub.urepr(optim_dict, nl=1)}')
+
+            for _ in range(batch_num):
+                lr_dict = optimizer.next_batch()
+                print(f'lr_dict = {ub.urepr(lr_dict, nl=0)}')
+
     return optimizer
 
 
