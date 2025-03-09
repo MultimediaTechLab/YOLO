@@ -15,6 +15,7 @@ class BCELoss(nn.Module):
         super().__init__()
         # TODO: Refactor the device, should be assign by config
         # TODO: origin v9 assing pos_weight == 1?
+        # TODO: Add ability to specify class weights
         self.bce = BCEWithLogitsLoss(reduction="none")
 
     def forward(self, predicts_cls: Tensor, targets_cls: Tensor, cls_norm: Tensor) -> Any:
@@ -68,6 +69,8 @@ class DFLoss(nn.Module):
 
 class YOLOLoss:
     def __init__(self, loss_cfg: LossConfig, vec2box: Vec2Box, class_num: int = 80, reg_max: int = 16) -> None:
+        # TODO: refactor to know what the class labels actually are instead of
+        # just the number.
         self.class_num = class_num
         self.vec2box = vec2box
 
@@ -124,6 +127,8 @@ class DualLoss:
     """
     def __init__(self, cfg: Config, vec2box) -> None:
         loss_cfg = cfg.task.loss
+        # TODO: refactor to know what the class labels actually are instead of
+        # just the number.
         self.loss = YOLOLoss(loss_cfg, vec2box, class_num=cfg.dataset.class_num, reg_max=cfg.model.anchor.reg_max)
 
         self.aux_rate = loss_cfg.aux
