@@ -2,6 +2,7 @@ einops
 faster-coco-eval
 graphviz
 hydra-core
+lazy-loader
 lightning
 loguru
 numpy
