@@ -1,9 +1,11 @@
 """
 The MIT YOLO rewrite
 """
+import lazy_loader
 
-__autogen__ = """
-mkinit ~/code/YOLO-v9/yolo/__init__.py --nomods --write --lazy-loader
+__notes__ = """
+# To regenerate
+mkinit ./yolo/__init__.py --nomods --lazy-loader --write
 
 # Check to see how long it takes to run a simple help command
 time python -m yolo.lazy --help
@@ -24,9 +26,6 @@ __submodules__ = {
     ],
     'utils.model_utils': ['PostProcess'],
 }
-
-
-import lazy_loader
 
 
 __getattr__, __dir__, __all__ = lazy_loader.attach(
