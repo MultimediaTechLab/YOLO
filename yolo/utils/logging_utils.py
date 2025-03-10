@@ -297,11 +297,13 @@ class ImageLogger(Callback):
                 image_hwc = einops.rearrange(image_chw, 'c h w -> h w c')
                 image_hwc = kwimage.ensure_uint255(image_hwc)
 
+                # TODO: include confusion analysis
+
                 # assert bx == 0, 'not handling multiple per batch'
                 true_dets = tensor_to_kwimage(gt_boxes).numpy()
                 pred_dets = tensor_to_kwimage(pred_boxes).numpy()
                 pred_dets = pred_dets.non_max_supress(thresh=0.3)
-                pred_dets_2 = pred_dets.compress(pred_dets.scores > 0.01)
+                pred_dets_2 = pred_dets.compress(pred_dets.scores > 0.1)
                 if len(pred_dets_2) > 0:
                     pred_dets = pred_dets_2
 

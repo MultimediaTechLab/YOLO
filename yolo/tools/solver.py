@@ -100,6 +100,7 @@ class TrainModel(ValidateModel):
 
     def training_step(self, batch, batch_idx):
         lr_dict = self.trainer.optimizers[0].next_batch()
+
         batch_size, images, targets, *_ = batch
         raw_predicts = self(images)
         aux_predicts = self.vec2box(raw_predicts["AUX"])

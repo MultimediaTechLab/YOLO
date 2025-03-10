@@ -173,9 +173,19 @@ def create_optimizer(model: YOLO, optim_cfg: OptimizerConfig) -> Optimizer:
         lr_dict = dict()
         for param_group in self.param_groups:
             group_name = param_group['name']
-            min_lr, max_lr = self.min_lr[group_name], self.max_lr[group_name]
-            param_group["lr"] = lerp(min_lr, max_lr, self.batch_idx, self.batch_num)
-            lr_dict[f"LR/{group_name}"] = param_group["lr"]
+            # TODO: give user control if they want this commented or not.
+            USE_CUSTOMIZED_LR_SCHEDULE = 0
+            if USE_CUSTOMIZED_LR_SCHEDULE:
+                min_lr, max_lr = self.min_lr[group_name], self.max_lr[group_name]
+                param_group["lr"] = lerp(min_lr, max_lr, self.batch_idx, self.batch_num)
+                # lr_dict[f"LR/{group_name}"] = param_group["lr"]
+
+            # Add any other scheduled key here.
+            keys = ['weight_decay', "lr"]
+            for k in keys:
+                if k in param_group:
+                    lr_dict[f"{k}/{group_name}"] = param_group[k]
+
             if "momentum" in valid_optim_args:
                 param_group["momentum"] = lerp(self.min_mom, self.max_mom, self.batch_idx, self.batch_num)
                 lr_dict[f"momentum/{group_name}"] = param_group["momentum"]
@@ -228,7 +238,14 @@ def create_scheduler(optimizer: Optimizer, schedule_cfg: SchedulerConfig) -> _LR
 
         warmup_schedule = LambdaLR(optimizer, lr_lambda=[lambda2, lambda1, lambda1])
         schedule = SequentialLR(optimizer, schedulers=[warmup_schedule, schedule], milestones=[wepoch - 1])
+    if 0:
+        schedule.step()
+        print(_get_optim_lrs(optimizer))
     return schedule
+
+
+def _get_optim_lrs(optimizer):
+    return {group['name']: group['lr'] for group in optimizer.param_groups}
 
 
 def initialize_distributed() -> None:
