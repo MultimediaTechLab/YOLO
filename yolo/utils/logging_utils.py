@@ -40,6 +40,7 @@ from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
 from yolo.utils.model_utils import EMA
 from yolo.utils.solver_utils import make_ap_table
+from yolo.utils.kwcoco_utils import tensor_to_kwimage
 
 
 # TODO: should be moved to correct position
@@ -48,7 +49,7 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
-    torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 
@@ -107,7 +108,7 @@ class YOLORichProgressBar(RichProgressBar):
         epoch_descript = "[cyan]Train [white]|"
         batch_descript = "[green]Train [white]|"
         metrics = self.get_metrics(trainer, pl_module)
-        metrics.pop("v_num")
+        metrics.pop("v_num", None)
         for metrics_name, metrics_val in metrics.items():
             if "Loss_step" in metrics_name:
                 epoch_descript += f"{metrics_name.removesuffix('_step').split('/')[1]: ^9}|"
@@ -126,7 +127,7 @@ class YOLORichProgressBar(RichProgressBar):
             self._update(self.val_sanity_progress_bar_id, batch_idx + 1)
         elif self.val_progress_bar_id is not None:
             self._update(self.val_progress_bar_id, batch_idx + 1)
-            _, mAP = outputs
+            mAP = outputs['mAP']
             mAP_desc = f" mAP :{mAP['map']*100:6.2f} | mAP50 :{mAP['map_50']*100:6.2f} |"
             self.progress.update(self.val_progress_bar_id, description=f"[green]Valid [white]|{mAP_desc}")
         self.refresh()
@@ -222,20 +223,125 @@ class YOLORichModelSummary(RichModelSummary):
 
 
 class ImageLogger(Callback):
+    def __init__(self):
+        # Number of validation / training batches to draw per epoch
+        self.num_draw_validation_per_epoch = 1
+        self.num_draw_training_per_epoch = 1
+        self.max_items_per_batch = float('inf')  # maximum number of items to draw per batch
+        super().__init__()
+
     def on_validation_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
-        if batch_idx != 0:
+        if batch_idx >= self.num_draw_validation_per_epoch:
             return
+        self.draw_batch_image(trainer, pl_module, outputs, batch, batch_idx)
+
+    def on_train_batch_start(self, trainer: Trainer, pl_module, batch, batch_idx):
+        # We need to let the trainer know that we would like to draw its
+        # output.
+        if hasattr(trainer.model, 'request_draw'):
+            if batch_idx >= self.num_draw_training_per_epoch:
+                pl_module.request_draw = False
+            else:
+                pl_module.request_draw = True
+
+    def on_train_batch_end(self, trainer: Trainer, pl_module, outputs, batch, batch_idx) -> None:
+        if batch_idx >= self.num_draw_training_per_epoch:
+            return
+        self.draw_batch_image(trainer, pl_module, outputs, batch, batch_idx)
+
+    def draw_batch_image(self, trainer, pl_module, outputs, batch, batch_idx):
         batch_size, images, targets, rev_tensor, img_paths = batch
-        predicts, _ = outputs
-        gt_boxes = targets[0] if targets.ndim == 3 else targets
-        pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
-        images = [images[0]]
+        predicts = outputs.get('predicts', None)
+        if predicts is None:
+            # Cannot draw what is not provided
+            print('Warning, attempted to draw batch, '
+                  'but the model did not provide the correct outputs')
+            return None
+
+        # gt_boxes = targets[0] if targets.ndim == 3 else targets
+        # pred_boxes = predicts[0] if isinstance(predicts, list) else predicts
+        # images = [images[0]]
         step = trainer.current_epoch
-        for logger in trainer.loggers:
-            if isinstance(logger, WandbLogger):
-                logger.log_image("Input Image", images, step=step)
-                logger.log_image("Ground Truth", images, step=step, boxes=[log_bbox(gt_boxes)])
-                logger.log_image("Prediction", images, step=step, boxes=[log_bbox(pred_boxes)])
+
+        for _logger in trainer.loggers:
+            if isinstance(_logger, WandbLogger):
+                # FIXME: not robust to configured image sizes, need to know
+                # that info.
+                for image, gt_boxes, pred_boxes in zip(images, targets, predicts):
+                    _logger.log_image("Input Image", [image], step=step)
+                    _logger.log_image("Ground Truth", [image], step=step, boxes=[log_bbox(gt_boxes)])
+                    _logger.log_image("Prediction", [image], step=step, boxes=[log_bbox(pred_boxes)])
+
+        # TODO: better config
+        import os
+        LOG_BATCH_VIZ_TO_DISK = bool(os.environ.get('LOG_BATCH_VIZ_TO_DISK', ''))
+        if LOG_BATCH_VIZ_TO_DISK:
+            import einops
+            import kwimage
+
+            # TODO:
+            # get a batter output path
+            # import pathlib
+            # root_dpath = pathlib.Path(trainer.default_root_dir)
+            root_dpath = trainer.log_dpath
+            out_dpath = root_dpath / 'monitor/batches' / trainer.state.stage.name
+            out_dpath.mkdir(exist_ok=True, parents=True)
+            epoch = trainer.current_epoch
+
+            num_draw = min(len(images), self.max_items_per_batch)
+
+            for bx in range(num_draw):
+                image_chw = images[bx].data.cpu().numpy()
+                gt_boxes = targets[bx]
+                pred_boxes = predicts[bx]
+                image_hwc = einops.rearrange(image_chw, 'c h w -> h w c')
+                image_hwc = kwimage.ensure_uint255(image_hwc)
+
+                # TODO: include confusion analysis
+
+                # assert bx == 0, 'not handling multiple per batch'
+                true_dets = tensor_to_kwimage(gt_boxes).numpy()
+                pred_dets = tensor_to_kwimage(pred_boxes).numpy()
+                pred_dets = pred_dets.non_max_supress(thresh=0.3)
+                pred_dets_2 = pred_dets.compress(pred_dets.scores > 0.1)
+                if len(pred_dets_2) > 0:
+                    pred_dets = pred_dets_2
+
+                raw_canvas = image_hwc.copy()
+                true_canvas = true_dets.draw_on(raw_canvas.copy(), color='green')
+                pred_canvas = pred_dets.draw_on(raw_canvas.copy(), color='blue')
+
+                raw_canvas = kwimage.draw_header_text(raw_canvas, 'raw')
+                true_canvas = kwimage.draw_header_text(true_canvas, f'true, n={len(true_dets)}')
+                pred_canvas = kwimage.draw_header_text(pred_canvas, f'pred, n={len(pred_dets)}')
+                canvas = kwimage.stack_images([
+                    raw_canvas, true_canvas, pred_canvas
+                ], axis=1, pad=3)
+
+                fname = f'img_epoch{epoch:04d}_batch{batch_idx:04d}_bx{bx:04d}.jpg'
+                fpath = out_dpath / fname
+                kwimage.imwrite(fpath, canvas)
+
+
+def wandb_to_kwimage(wand_annots):
+    import numpy as np
+    import kwimage
+    box_list = []
+    class_idxs = []
+    for row in wand_annots['predictions']['box_data']:
+        pos = row['position']
+        class_idx = row['class_id']
+        xyxy = [pos['minX'], pos['minY'], pos['maxX'], pos['maxY']]
+        box_list.append(xyxy)
+        class_idxs.append(class_idx)
+
+    boxes = kwimage.Boxes(np.array(box_list), format='xyxy')
+    dets = kwimage.Detections(
+        boxes=boxes,
+        class_idxs=np.array(class_idxs)
+    )
+    dets = dets.compress(dets.class_idxs > -1)
+    return dets
 
 
 def setup_logger(logger_name, quite=False):
@@ -271,23 +377,56 @@ def setup(cfg: Config):
 
     save_path = validate_log_directory(cfg, cfg.name)
 
-    progress, loggers = [], []
+    write_config(cfg, save_path)
+
+    callbacks, loggers = [], []
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
-        progress.append(EMA(cfg.task.ema.decay))
+        callbacks.append(EMA(cfg.task.ema.decay))
     if quite:
         logger.setLevel(logging.ERROR)
-        return progress, loggers, save_path
+        return callbacks, loggers, save_path
 
-    progress.append(YOLORichProgressBar())
-    progress.append(YOLORichModelSummary())
-    progress.append(ImageLogger())
+    from yolo.utils.logger import DISABLE_RICH_HANDLER
+
+    if not DISABLE_RICH_HANDLER:
+        callbacks.append(YOLORichProgressBar())
+        callbacks.append(YOLORichModelSummary())
+
+    if 1:
+        import lightning
+        checkpoint_init_args = {
+            'monitor': 'train_loss',
+            'mode': 'min',
+            'save_top_k': 5,
+            'filename': '{epoch:04d}-{step:06d}-trainloss{train_loss:.3f}.ckpt',
+            'save_last': True,
+        }
+        checkpointer = lightning.pytorch.callbacks.ModelCheckpoint(**checkpoint_init_args)
+        callbacks.append(checkpointer)
+
+    callbacks.append(ImageLogger())
+
+    print(f'cfg.use_tensorboard={cfg.use_tensorboard}')
     if cfg.use_tensorboard:
-        loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
+        print(f'save_path={save_path}')
+        # loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
+        loggers.append(TensorBoardLogger(save_path))
+        from yolo.utils.callbacks.tensorboard_plotter import TensorboardPlotter
+        callbacks.append(TensorboardPlotter())
     if cfg.use_wandb:
         loggers.append(WandbLogger(project="YOLO", name=cfg.name, save_dir=save_path, id=None))
 
-    return progress, loggers, save_path
+    return callbacks, loggers, save_path
+
+
+@rank_zero_only
+def write_config(cfg, save_path):
+    # Dump the config to the disk in the output folder
+    from omegaconf import OmegaConf
+    config_text = OmegaConf.to_yaml(cfg)
+    config_fpath = save_path / f'{cfg.task.task}_config.yaml'
+    config_fpath.write_text(config_text)
 
 
 def log_model_structure(model: Union[ModuleList, YOLOLayer, YOLO]):

@@ -120,6 +120,15 @@ def generate_anchors(image_size: List[int], strides: List[int]):
     Returns:
         all_anchors [HW x 2]:
         all_scalers [HW]: The index of the best targets for each anchors
+
+    Example:
+        >>> from yolo.utils.bounding_box_utils import *  # NOQA
+        >>> from collections import Counter
+        >>> image_size = (640, 640)
+        >>> strides = [8, 16, 32]
+        >>> all_anchors, all_scalers = generate_anchors(image_size, strides)
+        >>> histogram = Counter(map(int, all_scalers))
+        >>> assert histogram == {8: 6400, 16: 1600, 32: 400}
     """
     W, H = image_size
     anchors = []
@@ -142,6 +151,39 @@ def generate_anchors(image_size: List[int], strides: List[int]):
 
 
 class BoxMatcher:
+    """
+    Example:
+        >>> from yolo.utils.bounding_box_utils import *  # NOQA
+        >>> import torch
+        >>> from yolo.utils.bounding_box_utils import BoxMatcher
+        >>> from yolo.utils.bounding_box_utils import Vec2Box
+        >>> from yolo.utils.config_utils import build_config
+        >>> from yolo.tools.data_loader import pack_targets
+        >>> import kwimage
+        >>> cfg = build_config(overrides=['task=train'])
+        >>> match_cfg = cfg.task.loss.matcher
+        >>> device = 'cpu'
+        >>> vec2box = Vec2Box(model=None, anchor_cfg=cfg.model.anchor, image_size=cfg.image_size, device=device)
+        >>> reg_max = cfg.model.anchor['reg_max']
+        >>> C = class_num = 5
+        >>> B = batch_size = 4
+        >>> A = num_anchors = vec2box.anchor_grid.shape[0]
+        >>> # Build the Box Matcher
+        >>> self = BoxMatcher(match_cfg, class_num, vec2box, reg_max)
+        >>> # Generate random targets (TODO: ensure scales agree with what is used in the forward pass)
+        >>> target_sizes = [3, 1, 0, 2]
+        >>> batch_dets = [kwimage.Detections.random(s).tensor() for s in target_sizes]
+        >>> labels = [torch.concat([det.boxes.to_ltrb().data,
+        >>>                         det.class_idxs[:, None]], dim=1)
+        >>>           for det in batch_dets]
+        >>> target = pack_targets(labels, max_targets=10)
+        >>> # Generate random predictions (TODO: ensure scales agree with what is used in the forward pass)
+        >>> predict_cls = torch.rand(B, A, C)
+        >>> predict_bbox = kwimage.Boxes.random(B * A).to_ltrb().tensor().data.view(B, A, 4)
+        >>> predict = (predict_bbox, predict_cls)
+        >>> # Call function
+        >>> anchor_matched_targets, valid_mask = self(target, predict)
+    """
     def __init__(self, cfg: MatcherConfig, class_num: int, vec2box, reg_max: int) -> None:
         self.class_num = class_num
         self.vec2box = vec2box
@@ -336,6 +378,22 @@ class BoxMatcher:
 
 
 class Vec2Box:
+    """
+    Example:
+        >>> import torch
+        >>> from yolo.utils.bounding_box_utils import Vec2Box
+        >>> from yolo.utils.config_utils import build_config
+        >>> cfg = build_config(overrides=['task=train'])
+        >>> match_cfg = cfg.task.loss.matcher
+        >>> device = 'cpu'
+        >>> vec2box = Vec2Box(model=None, anchor_cfg=cfg.model.anchor, image_size=cfg.image_size, device=device)
+        >>> # TODO: document form of predicts
+        >>> B, C, h, w = 2, 3, 7, 11
+        >>> A = 1
+        >>> R = 1
+        >>> predicts = []
+
+    """
     def __init__(self, model: YOLO, anchor_cfg: AnchorConfig, image_size, device):
         self.device = device
 

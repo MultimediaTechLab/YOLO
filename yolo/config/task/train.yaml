@@ -14,7 +14,8 @@ data:
   data_augment:
     Mosaic: 1
     # MixUp: 1
-    # HorizontalFlip: 0.5
+    HorizontalFlip: 0.0
+    VerticalFlip: 0.0
     RandomCrop: 1
     RemoveOutliers: 1e-8
 

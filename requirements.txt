@@ -2,10 +2,10 @@ einops
 faster-coco-eval
 graphviz
 hydra-core
+lazy-loader
 lightning
 loguru
 numpy
-opencv-python
 Pillow
 pycocotools
 requests
