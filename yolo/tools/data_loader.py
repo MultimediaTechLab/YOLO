@@ -301,19 +301,50 @@ def collate_fn(batch: List[Tuple[Tensor, Tensor]]) -> Tuple[Tensor, List[Tensor]
             - A list of tensors, each corresponding to bboxes for each image in the batch.
     """
     batch_size = len(batch)
-    target_sizes = [item[1].size(0) for item in batch]
     # TODO: Improve readability of these process
     # TODO: remove maxBbox or reduce loss function memory usage
-    batch_targets = torch.zeros(batch_size, min(max(target_sizes), 100), 5)
-    batch_targets[:, :, 0] = -1
-    for idx, target_size in enumerate(target_sizes):
-        batch_targets[idx, : min(target_size, 100)] = batch[idx][1][:100]
+    labels = [batch_item[1] for batch_item in batch]
+    batch_targets = pack_targets(labels, max_targets=100)
 
     batch_images, _, batch_reverse, batch_path = zip(*batch)
     batch_images = torch.stack(batch_images)
     batch_reverse = torch.stack(batch_reverse)
 
     return batch_size, batch_images, batch_targets, batch_reverse, batch_path
+
+
+def pack_targets(labels, max_targets=100):
+    """
+    Collate truth bounding boxes into a fixed size tensor with -1 padding
+
+    Args:
+        labels (List[Tensor]): list of target boxes in the form
+             left_x, top_y, right_x, bottom_y, class_index
+
+    Returns:
+        Tensor: with shape (batch, targets, 5):
+            The packed tensor with at most max_targets per batch item.
+            A -1 indicates when there is no target
+
+    Example:
+        >>> import kwimage
+        >>> kwimage.Detections.random(1).tensor().data
+        >>> target_sizes = [3, 1, 0, 2]
+        >>> batch_dets = [kwimage.Detections.random(s).tensor() for s in target_sizes]
+        >>> # Construct YOLO-packed batch labels from kwimage Detections
+        >>> labels = [torch.concat([det.boxes.to_ltrb().data,
+        >>>                         det.class_idxs[:, None]], dim=1)
+        >>>           for det in batch_dets]
+        >>> batch_targets = pack_targets(labels, max_targets=10)
+        >>> assert batch_targets.shape == (4, 3, 5)
+    """
+    target_sizes = [targets.size(0) for targets in labels]
+    batch_size = len(labels)
+    batch_targets = torch.zeros(batch_size, min(max(target_sizes), max_targets), 5)
+    batch_targets[:, :, 0] = -1
+    for idx, target_size in enumerate(target_sizes):
+        batch_targets[idx, :min(target_size, max_targets)] = labels[idx][:max_targets]
+    return batch_targets
 
 
 def create_dataloader(data_cfg: DataConfig, dataset_cfg: DatasetConfig, task: str = "train"):
