@@ -138,8 +138,7 @@ class InferenceModel(BaseModel):
         # TODO: Add FastModel
         self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
 
-        print(f'self.predict_loader._is_coco={self.predict_loader._is_coco}')
-        if self.predict_loader._is_coco:
+        if getattr(self.predict_loader, '_is_coco', False):
             # Setup a kwcoco file to write to if the user requests it.
             self.pred_dset = self.predict_loader.coco_dset.copy()
             self.pred_dset.reroot(absolute=True)
