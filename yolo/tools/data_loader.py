@@ -15,6 +15,7 @@ from yolo.config.config import DataConfig, DatasetConfig
 from yolo.tools.data_augmentation import *
 from yolo.tools.data_augmentation import AugmentationComposer
 from yolo.tools.dataset_preparation import prepare_dataset
+from yolo.utils.bounding_box_utils import calculate_iou
 from yolo.utils.dataset_utils import (
     create_image_metadata,
     locate_label_paths,
@@ -110,6 +111,9 @@ class YoloDataset(Dataset):
 
             labels = self.load_valid_labels(image_id, image_seg_annotations)
 
+            if labels is not None and len(labels) > 1:
+                labels = self.deduplicate_labels(labels)
+
             img_path = images_path / image_name
             if sort_image:
                 with Image.open(img_path) as img:
@@ -124,6 +128,33 @@ class YoloDataset(Dataset):
         logger.info(f"Recorded {valid_inputs}/{len(images_list)} valid inputs")
         return data
 
+    def deduplicate_labels(self, labels: Tensor) -> Tensor:
+        """
+        Removes duplicate labels from a Tensor of bboxes.
+
+        Parameters:
+            labels (Tensor): A tensor of all input bounding boxes.
+
+        Returns:
+            Tensor: A tensor of all remaining bounding boxes.
+        """
+        dedup_labels = []
+
+        for l in labels:
+            acceptable = True
+            for ddl in dedup_labels:
+                if int(l[0]) != int(ddl[0]):
+                    continue
+
+                if float(calculate_iou(l[1:], ddl[1:])) > .99:
+                    acceptable = False
+                    break
+
+            if acceptable:
+                dedup_labels.append(l)
+
+        return torch.stack(dedup_labels)
+
     def load_valid_labels(self, label_path: str, seg_data_one_img: list) -> Union[Tensor, None]:
         """
         Loads valid COCO style segmentation data (values between [0, 1]) and converts it to bounding box coordinates
@@ -137,13 +168,17 @@ class YoloDataset(Dataset):
             Tensor or None: A tensor of all valid bounding boxes if any are found; otherwise, None.
         """
         bboxes = []
-        for seg_data in seg_data_one_img:
-            cls = seg_data[0]
-            points = np.array(seg_data[1:]).reshape(-1, 2)
-            valid_points = points[(points >= 0) & (points <= 1)].reshape(-1, 2)
-            if valid_points.size > 1:
-                bbox = torch.tensor([cls, *valid_points.min(axis=0), *valid_points.max(axis=0)])
-                bboxes.append(bbox)
+        try:
+            for seg_data in seg_data_one_img:
+                cls = seg_data[0]
+                points = np.array(seg_data[1:]).reshape(-1, 2)
+                valid_points = points[(points >= 0) & (points <= 1)].reshape(-1, 2)
+                if valid_points.size > 1:
+                    bbox = torch.tensor([cls, *valid_points.min(axis=0), *valid_points.max(axis=0)])
+                    bboxes.append(bbox)
+        except ValueError:
+            logger.warning("Invalid BBox in {}", label_path)
+            return torch.zeros((0, 5))
 
         if bboxes:
             return torch.stack(bboxes)
