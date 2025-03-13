@@ -12,4 +12,5 @@ requests
 rich
 torch
 torchvision
+supervision
 wandb
