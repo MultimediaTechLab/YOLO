@@ -257,7 +257,7 @@ def setup(cfg: Config):
         logger.setLevel(logging.ERROR)
         return progress, loggers, save_path
 
-    progress.append(EarlyStopping('map'))
+    progress.append(EarlyStopping('map', mode='max'))
     progress.append(YOLORichProgressBar())
     progress.append(YOLORichModelSummary())
 
