@@ -21,7 +21,7 @@ data:
 optimizer:
   type: SGD
   args:
-    lr: 0.001
+    lr: 0.003
     weight_decay: 0.0005
     momentum: 0.937
     nesterov: true
