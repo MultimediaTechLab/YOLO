@@ -148,7 +148,6 @@ class YoloDataset(Dataset):
         if bboxes:
             return torch.stack(bboxes)
         else:
-            logger.warning(f"No valid BBox in {label_path}")
             return torch.zeros((0, 5))
 
     def get_data(self, idx):

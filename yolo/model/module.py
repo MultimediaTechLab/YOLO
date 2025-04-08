@@ -6,6 +6,8 @@ from einops import rearrange
 from torch import Tensor, nn
 from torch.nn.common_types import _size_2_t
 
+from yolo.config.config import AnchorConfig
+from yolo.utils.bounding_box_utils import Vec2Box
 from yolo.utils.logger import logger
 from yolo.utils.module_utils import auto_pad, create_activation_function, round_up
 
@@ -59,7 +61,8 @@ class Concat(nn.Module):
 class Detection(nn.Module):
     """A single YOLO Detection head for detection models"""
 
-    def __init__(self, in_channels: Tuple[int], num_classes: int, *, reg_max: int = 16, use_group: bool = True):
+    def __init__(self, in_channels: Tuple[int], num_classes: int, *, reg_max: int = 16, use_group: bool = True,
+                 is_exporting: bool = False, head_index: int = -1, image_size: tuple[int, int] = (640, 640)):
         super().__init__()
 
         groups = 4 if use_group else 1
@@ -83,11 +86,30 @@ class Detection(nn.Module):
         self.anchor_conv[-1].bias.data.fill_(1.0)
         self.class_conv[-1].bias.data.fill_(-10)  # TODO: math.log(5 * 4 ** idx / 80 ** 3)
 
-    def forward(self, x: Tensor) -> Tuple[Tensor]:
+        self.is_exporting = is_exporting
+        if self.is_exporting:
+            if head_index == -1:
+                raise RuntimeError('Unable to determine head index')
+
+            strides = [2 ** (head_index + 3)]
+
+            cfg = AnchorConfig(strides, None, None, None)
+            self.converter = Vec2Box(None, cfg, image_size, 'cpu')
+
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor] | Tensor:
         anchor_x = self.anchor_conv(x)
         class_x = self.class_conv(x)
         anchor_x, vector_x = self.anc2vec(anchor_x)
-        return class_x, anchor_x, vector_x
+
+        if self.is_exporting:
+            pred_class, _, pred_bbox = self.converter([(class_x, anchor_x, vector_x)])
+            pred_class = pred_class.sigmoid()
+
+            output = torch.concat([pred_bbox, pred_class], axis=2)
+
+            return output
+        else:
+            return class_x, anchor_x, vector_x
 
 
 class IDetection(nn.Module):
@@ -115,7 +137,7 @@ class IDetection(nn.Module):
 class MultiheadDetection(nn.Module):
     """Mutlihead Detection module for Dual detect or Triple detect"""
 
-    def __init__(self, in_channels: List[int], num_classes: int, **head_kwargs):
+    def __init__(self, in_channels: List[int], num_classes: int, image_size: tuple[int, int] = (640, 640), **head_kwargs):
         super().__init__()
         DetectionHead = Detection
 
@@ -123,7 +145,7 @@ class MultiheadDetection(nn.Module):
             DetectionHead = IDetection
 
         self.heads = nn.ModuleList(
-            [DetectionHead((in_channels[0], in_channel), num_classes, **head_kwargs) for in_channel in in_channels]
+            [DetectionHead((in_channels[0], in_channel), num_classes, head_index=i, image_size=image_size, **head_kwargs) for i, in_channel in enumerate(in_channels)]
         )
 
     def forward(self, x_list: List[torch.Tensor]) -> List[torch.Tensor]:

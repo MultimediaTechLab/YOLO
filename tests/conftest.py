@@ -55,13 +55,13 @@ def device():
 
 @pytest.fixture(scope="session")
 def model(train_cfg: Config, device) -> YOLO:
-    model = create_model(train_cfg.model)
+    model = create_model(train_cfg.model, train_cfg)
     return model.to(device)
 
 
 @pytest.fixture(scope="session")
 def model_v7(inference_v7_cfg: Config, device) -> YOLO:
-    model = create_model(inference_v7_cfg.model)
+    model = create_model(inference_v7_cfg.model, inference_v7_cfg)
     return model.to(device)
 
 

@@ -1,12 +1,12 @@
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 import torch
 from omegaconf import ListConfig, OmegaConf
 from torch import nn
 
-from yolo.config.config import ModelConfig, YOLOLayer
+from yolo.config.config import Config, ModelConfig, YOLOLayer
 from yolo.tools.dataset_preparation import prepare_weight
 from yolo.utils.logger import logger
 from yolo.utils.module_utils import get_layer_map
@@ -21,12 +21,18 @@ class YOLO(nn.Module):
                    parameters, and any other relevant configuration details.
     """
 
-    def __init__(self, model_cfg: ModelConfig, class_num: int = 80):
+    def __init__(self, model_cfg: ModelConfig, class_num: int = 80, cfg: Optional[Config] = None):
         super(YOLO, self).__init__()
         self.num_classes = class_num
         self.layer_map = get_layer_map()  # Get the map Dict[str: Module]
         self.model: List[YOLOLayer] = nn.ModuleList()
         self.reg_max = getattr(model_cfg.anchor, "reg_max", 16)
+        self.is_exporting = getattr(model_cfg, "is_exporting", False)
+        if cfg is not None:
+            self.image_size = cfg.image_size
+        else:
+            self.image_size = (640, 640)
+
         self.build_model(model_cfg.model)
 
     def build_model(self, model_arch: Dict[str, List[Dict[str, Dict[str, Dict]]]]):
@@ -53,6 +59,8 @@ class YOLO(nn.Module):
                         layer_args["in_channel"] = output_dim[source]
                     layer_args["num_classes"] = self.num_classes
                     layer_args["reg_max"] = self.reg_max
+                    layer_args["is_exporting"] = self.is_exporting
+                    layer_args["image_size"] = self.image_size
 
                 # create layers
                 layer = self.create_layer(layer_type, source, layer_info, **layer_args)
@@ -69,6 +77,8 @@ class YOLO(nn.Module):
             layer_idx += 1
 
     def forward(self, x):
+        if self.is_exporting:
+            x = x.permute(0, 3, 1, 2)
         y = {0: x}
         output = dict()
         for index, layer in enumerate(self.model, start=1):
@@ -126,17 +136,19 @@ class YOLO(nn.Module):
             weights: A OrderedDict containing the new weights.
         """
         if isinstance(weights, Path):
+            logger.info(f":building_construction: Loading weights from {weights}")
             weights = torch.load(weights, map_location=torch.device("cpu"), weights_only=False)
         if "model_state_dict" in weights:
             weights = weights["model_state_dict"]
 
         model_state_dict = self.model.state_dict()
 
-        # TODO1: autoload old version weight
-        # TODO2: weight transform if num_class difference
-
         error_dict = {"Mismatch": set(), "Not Found": set()}
         for model_key, model_weight in model_state_dict.items():
+            # don't load weights into the detection heads since we're finetuning
+            if model_key.split(".")[1] == 'heads':
+                continue
+
             if model_key not in weights:
                 error_dict["Not Found"].add(tuple(model_key.split(".")[:-2]))
                 continue
@@ -152,7 +164,7 @@ class YOLO(nn.Module):
         self.model.load_state_dict(model_state_dict)
 
 
-def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, class_num: int = 80) -> YOLO:
+def create_model(model_cfg: ModelConfig, cfg: Optional[Config] = None, weight_path: Union[bool, Path] = True, class_num: int = 80) -> YOLO:
     """Constructs and returns a model from a Dictionary configuration file.
 
     Args:
@@ -162,7 +174,7 @@ def create_model(model_cfg: ModelConfig, weight_path: Union[bool, Path] = True, 
         YOLO: An instance of the model defined by the given configuration.
     """
     OmegaConf.set_struct(model_cfg, False)
-    model = YOLO(model_cfg, class_num)
+    model = YOLO(model_cfg, class_num, cfg=cfg)
     if weight_path:
         if weight_path == True:
             weight_path = Path("weights") / f"{model_cfg.name}.pt"

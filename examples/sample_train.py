@@ -23,7 +23,7 @@ def main(cfg: Config):
     progress = ProgressLogger(cfg, exp_name=cfg.name)
     device, use_ddp = get_device(cfg.device)
     dataloader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task, use_ddp)
-    model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
+    model = create_model(cfg.model, cfg=cfg, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
     model = model.to(device)
 
     converter = create_converter(cfg.model.name, model, cfg.model.anchor, cfg.image_size, device)
