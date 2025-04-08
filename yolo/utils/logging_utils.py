@@ -21,7 +21,7 @@ import numpy as np
 import torch
 import wandb
 from lightning import LightningModule, Trainer, seed_everything
-from lightning.pytorch.callbacks import Callback, RichModelSummary, RichProgressBar
+from lightning.pytorch.callbacks import Callback, EarlyStopping, RichModelSummary, RichProgressBar
 from lightning.pytorch.callbacks.progress.rich_progress import CustomProgress
 from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 from lightning.pytorch.utilities import rank_zero_only
@@ -247,14 +247,6 @@ def setup(cfg: Config):
     setup_logger("lightning.fabric", quite=quite)
     setup_logger("lightning.pytorch", quite=quite)
 
-    def custom_wandb_log(string="", level=int, newline=True, repeat=True, prefix=True, silent=False):
-        if silent:
-            return
-        for line in string.split("\n"):
-            logger.info(Text.from_ansi(":globe_with_meridians: " + line))
-
-    wandb.errors.term._log = custom_wandb_log
-
     save_path = validate_log_directory(cfg, cfg.name)
 
     progress, loggers = [], []
@@ -265,13 +257,9 @@ def setup(cfg: Config):
         logger.setLevel(logging.ERROR)
         return progress, loggers, save_path
 
+    progress.append(EarlyStopping('map'))
     progress.append(YOLORichProgressBar())
     progress.append(YOLORichModelSummary())
-    progress.append(ImageLogger())
-    if cfg.use_tensorboard:
-        loggers.append(TensorBoardLogger(log_graph="all", save_dir=save_path))
-    if cfg.use_wandb:
-        loggers.append(WandbLogger(project="YOLO", name=cfg.name, save_dir=save_path, id=None))
 
     return progress, loggers, save_path
 
