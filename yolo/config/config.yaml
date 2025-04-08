@@ -2,11 +2,11 @@ hydra:
   run:
     dir: runs
 
-name: v9-dev
+name: worlds
 
 defaults:
   - _self_
-  - task: inference
-  - dataset: coco
+  - task: train
+  - dataset: worlds
   - model: v9-c
   - general

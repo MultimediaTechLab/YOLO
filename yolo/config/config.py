@@ -158,6 +158,8 @@ class Config:
 
     weight: Optional[str]
 
+    export_path: Optional[str]
+
 
 @dataclass
 class YOLOLayer(nn.Module):

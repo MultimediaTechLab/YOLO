@@ -59,8 +59,6 @@ def _get_latest_checkpoint(cfg: Config) -> str:
 
 def export_onnx(cfg: Config):
     print('Exporting model to ONNX...')
-    output_path = '/home/nik/work/model.onnx'  # TODO change thsi
-
     checkpoint_file = _get_latest_checkpoint(cfg)
 
     checkpoint_weights = torch.load(checkpoint_file, map_location=torch.device('cpu'), weights_only=False)
@@ -83,7 +81,7 @@ def export_onnx(cfg: Config):
     torch.onnx.export(
         export_model,
         (dummy_input,),
-        '/home/nik/work/model.onnx',
+        cfg.export_path,
         export_params=True,
         do_constant_folding=True,
         input_names=['input'],
@@ -91,7 +89,7 @@ def export_onnx(cfg: Config):
         dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}},
     )
 
-    print('Successfully exported model to %s' % output_path)
+    print('Successfully exported model to %s' % cfg.export_path)
 
 
 if __name__ == '__main__':
