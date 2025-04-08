@@ -6,6 +6,7 @@ from pathlib import Path
 import hydra
 import torch
 from lightning import Trainer
+from omegaconf import OmegaConf
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
@@ -18,6 +19,9 @@ from yolo.utils.logging_utils import setup
 
 @hydra.main(config_path='config', config_name='config', version_base=None)
 def main(cfg: Config):
+    if 'DATASET_OVERRIDE_CONFIG' in os.environ:
+        cfg.dataset = OmegaConf.load(os.environ['DATASET_OVERRIDE_CONFIG'])
+
     callbacks, loggers, save_path = setup(cfg)
 
     trainer = Trainer(
