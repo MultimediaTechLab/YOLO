@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: runs
+    dir: /tmp/runs
 
 name: worlds
 
