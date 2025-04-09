@@ -177,12 +177,12 @@ def create_model(model_cfg: ModelConfig, cfg: Optional[Config] = None, weight_pa
     model = YOLO(model_cfg, class_num, cfg=cfg)
     if weight_path:
         if weight_path == True:
-            weight_path = Path("weights") / f"{model_cfg.name}.pt"
+            weight_path = Path("/tmp/weights") / f"{model_cfg.name}.pt"
         elif isinstance(weight_path, str):
             weight_path = Path(weight_path)
 
         if not weight_path.exists():
-            logger.info(f"🌐 Weight {weight_path} not found, try downloading")
+            logger.info(f"🌐 Weight {weight_path} not found, downloading")
             prepare_weight(weight_path=weight_path)
         if weight_path.exists():
             model.save_load_weights(weight_path)
