@@ -177,7 +177,7 @@ def create_model(model_cfg: ModelConfig, cfg: Optional[Config] = None, weight_pa
     model = YOLO(model_cfg, class_num, cfg=cfg)
     if weight_path:
         if weight_path == True:
-            weight_path = Path("/tmp/weights") / f"{model_cfg.name}.pt"
+            weight_path = Path(cfg.out_path) / f"{model_cfg.name}.pt"
         elif isinstance(weight_path, str):
             weight_path = Path(weight_path)
 

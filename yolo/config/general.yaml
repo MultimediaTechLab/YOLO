@@ -3,7 +3,7 @@ cpu_num: 16
 
 image_size: [640, 640]
 
-out_path: /tmp/runs
+out_path: runs
 exist_ok: True
 
 lucky_number: 10
