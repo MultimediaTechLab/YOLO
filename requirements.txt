@@ -1,12 +1,10 @@
 einops
 faster-coco-eval
-graphviz
 hydra-core
 lightning
 numpy
 opencv-python
 Pillow
-requests
 rich
 torch
 torchvision
