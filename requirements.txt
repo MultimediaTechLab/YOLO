@@ -3,13 +3,10 @@ faster-coco-eval
 graphviz
 hydra-core
 lightning
-loguru
 numpy
 opencv-python
 Pillow
-pycocotools
 requests
 rich
 torch
 torchvision
-wandb

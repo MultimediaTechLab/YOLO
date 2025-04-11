@@ -1,4 +1,3 @@
-pycocotools==2.0.7
 torch==2.2.1
 torchvision==0.17.1
 setuptools>=60.0

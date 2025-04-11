@@ -1,6 +1,6 @@
 """
 Module for initializing logging tools used in machine learning and data processing.
-Supports integration with Weights & Biases (wandb), Loguru, TensorBoard, and other
+Supports integration with TensorBoard and other
 logging frameworks as needed.
 
 This setup ensures consistent logging across various platforms, facilitating
@@ -19,11 +19,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-import wandb
 from lightning import LightningModule, Trainer, seed_everything
 from lightning.pytorch.callbacks import Callback, EarlyStopping, RichModelSummary, RichProgressBar
 from lightning.pytorch.callbacks.progress.rich_progress import CustomProgress
-from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import ListConfig
 from rich import get_console, reconfigure
@@ -217,11 +215,6 @@ class ImageLogger(Callback):
         pred_boxes = outputs[0] if isinstance(outputs, list) else outputs
         images = [images[0]]
         step = trainer.current_epoch
-        for logger in trainer.loggers:
-            if isinstance(logger, WandbLogger):
-                logger.log_image("Input Image", images, step=step)
-                logger.log_image("Ground Truth", images, step=step, boxes=[log_bbox(gt_boxes)])
-                logger.log_image("Prediction", images, step=step, boxes=[log_bbox(pred_boxes)])
 
 
 def setup_logger(logger_name, quite=False):

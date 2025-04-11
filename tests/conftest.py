@@ -67,7 +67,6 @@ def model_v7(inference_v7_cfg: Config, device) -> YOLO:
 
 @pytest.fixture(scope="session")
 def solver(train_cfg: Config) -> Trainer:
-    train_cfg.use_wandb = False
     callbacks, loggers, save_path = setup(train_cfg)
     trainer = Trainer(
         accelerator="auto",

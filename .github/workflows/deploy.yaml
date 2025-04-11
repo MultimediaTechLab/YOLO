@@ -53,17 +53,17 @@ jobs:
 
     - name: Run Validation
       run: |
-        python yolo/lazy.py task=validation use_wandb=False dataset=mock
-        python yolo/lazy.py task=validation use_wandb=False dataset=mock model=v9-s
-        python yolo/lazy.py task=validation use_wandb=False dataset=mock name=AnyNameYouWant
+        python yolo/lazy.py task=validation dataset=mock
+        python yolo/lazy.py task=validation dataset=mock model=v9-s
+        python yolo/lazy.py task=validation dataset=mock name=AnyNameYouWant
 
     - name: Run Inference
       run: |
-        python yolo/lazy.py task=inference use_wandb=False
-        python yolo/lazy.py task=inference use_wandb=False model=v7
-        python yolo/lazy.py task=inference use_wandb=False +quite=True
-        python yolo/lazy.py task=inference use_wandb=False name=AnyNameYouWant
-        python yolo/lazy.py task=inference use_wandb=False image_size=\[480,640]
-        python yolo/lazy.py task=inference use_wandb=False task.nms.min_confidence=0.1
-        python yolo/lazy.py task=inference use_wandb=False task.fast_inference=deploy
-        python yolo/lazy.py task=inference use_wandb=False task.data.source=tests/data/images/val
+        python yolo/lazy.py task=inference
+        python yolo/lazy.py task=inference model=v7
+        python yolo/lazy.py task=inference +quite=True
+        python yolo/lazy.py task=inference name=AnyNameYouWant
+        python yolo/lazy.py task=inference image_size=\[480,640]
+        python yolo/lazy.py task=inference task.nms.min_confidence=0.1
+        python yolo/lazy.py task=inference task.fast_inference=deploy
+        python yolo/lazy.py task=inference task.data.source=tests/data/images/val

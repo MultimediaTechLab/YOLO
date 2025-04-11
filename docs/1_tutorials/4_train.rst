@@ -6,7 +6,7 @@ Training Model
 
 To train a model, the :class:`~yolo.tools.solver.ModelTrainer` can help manage the training process. Initialize the :class:`~yolo.tools.solver.ModelTrainer` and use the :func:`~yolo.tools.solver.ModelTrainer.solve` function to start the training.
 
-Before starting the training, don't forget to start the progress logger to enable logging the process status. This will also enable `Weights & Biases (wandb) <https://wandb.ai/site>`_ or TensorBoard if configured.
+Before starting the training, don't forget to start the progress logger to enable logging the process status. This will also enable TensorBoard if configured.
 
 .. code-block:: python
 

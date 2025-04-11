@@ -61,7 +61,7 @@ To train YOLO on your machine/dataset:
 2. Run the training script:
 
 ```shell
-python yolo/lazy.py task=train dataset=** use_wandb=True
+python yolo/lazy.py task=train dataset=**
 python yolo/lazy.py task=train task.data.batch_size=8 model=v9-c weight=False # or more args
 ```
 
