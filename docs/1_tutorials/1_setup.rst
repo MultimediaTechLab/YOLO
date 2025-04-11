@@ -4,7 +4,7 @@ Setup Config
 To set up your configuration, you will need to generate a configuration class based on :class:`~yolo.config.config.Config`, which can be achieved using `hydra <https://hydra.cc/>`_.
 The configuration will include all the necessary settings for your ``task``, including general configuration, ``dataset`` information, and task-specific information (``train``, ``inference``, ``validation``).
 
-Next, create the progress logger to handle the output and progress bar. This class is based on `rich <https://github.com/Textualize/rich>`_'s progress bar and customizes the logger (print function) using `loguru <https://loguru.readthedocs.io/>`_.
+Next, create the progress logger to handle the output and progress bar. This class is based on `rich <https://github.com/Textualize/rich>`_'s progress bar.
 
 .. tabs::
 

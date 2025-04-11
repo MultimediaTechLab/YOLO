@@ -2,7 +2,6 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-import requests
 from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
 from yolo.config.config import DatasetConfig
@@ -13,6 +12,7 @@ def download_file(url, destination: Path):
     """
     Downloads a file from the specified URL to the destination path with progress logging.
     """
+    import requests
     with requests.get(url, stream=True) as response:
         response.raise_for_status()
         total_size = int(response.headers.get("content-length", 0))
@@ -91,6 +91,7 @@ def prepare_weight(download_link: Optional[str] = None, weight_path: Path = Path
     if not weight_path.parent.is_dir():
         weight_path.parent.mkdir(parents=True, exist_ok=True)
 
+    import requests
     if weight_path.exists():
         logger.info(f"Weight file '{weight_path}' already exists.")
     try:

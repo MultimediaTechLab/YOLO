@@ -163,7 +163,6 @@ Config
         str out_path
         bool exist_ok
         int lucky_number
-        bool use_wandb
         bool use_TensorBoard
         Optional~str~ weight
     }

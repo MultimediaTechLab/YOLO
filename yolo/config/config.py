@@ -153,7 +153,6 @@ class Config:
     exist_ok: bool
 
     lucky_number: 10
-    use_wandb: bool
     use_tensorboard: bool
 
     weight: Optional[str]

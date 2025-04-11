@@ -38,9 +38,6 @@ You can customize the training process by overriding the following common argume
 - ``weight``: :guilabel:`Path | bool | None`
   The path to pre-trained weights, False for training from scratch, None for default weights.
 
-- ``use_wandb``: :guilabel:`bool`
-  Whether to use Weights and Biases for experiment tracking.
-
 - ``use_TensorBoard``: :guilabel:`bool`
   Whether to use TensorBoard for logging.
 

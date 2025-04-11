@@ -6,7 +6,7 @@ To facilitate easy customization of the YOLO model, we've structured the codebas
 
 ```shell
 # Train
-python yolo/lazy.py task=train dataset=dev use_wandb=True
+python yolo/lazy.py task=train dataset=dev
 
 # Validate
 python yolo/lazy.py task=validation
@@ -127,7 +127,6 @@ Custom transformations should be designed to accept an image and its bounding bo
         - `func` organize_annotations_by_image:
         - `func` scale_segmentation:
     - **logging_utils**
-        - `func` custom_log: custom loguru, overiding the origin logger
         - `class` ProgressTracker: A class to handle output for each batch, epoch
         - `func` log_model_structure: give a torch model, print it as a table
         - `func` validate_log_directory: for given experiemnt, check if the log folder already existed

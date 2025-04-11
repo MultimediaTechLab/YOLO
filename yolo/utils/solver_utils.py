@@ -1,21 +1,7 @@
-import contextlib
-import io
 from typing import Dict
 
 import numpy as np
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
 from rich.table import Table
-
-
-def calculate_ap(coco_gt: COCO, pd_path):
-    with contextlib.redirect_stdout(io.StringIO()):
-        coco_dt = coco_gt.loadRes(pd_path)
-        coco_eval = COCOeval(coco_gt, coco_dt, "bbox")
-        coco_eval.evaluate()
-        coco_eval.accumulate()
-        coco_eval.summarize()
-    return coco_eval.stats
 
 
 def make_ap_table(score: Dict[str, float], past_result=[], max_result=None, epoch=-1):
