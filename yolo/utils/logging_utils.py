@@ -236,23 +236,14 @@ def setup_logger(logger_name, quite=False):
 
 
 def setup(cfg: Config):
-    quite = hasattr(cfg, "quite")
-    setup_logger("lightning.fabric", quite=quite)
-    setup_logger("lightning.pytorch", quite=quite)
-
     save_path = validate_log_directory(cfg, cfg.name)
 
     progress, loggers = [], []
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
         progress.append(EMA(cfg.task.ema.decay))
-    if quite:
-        logger.setLevel(logging.ERROR)
-        return progress, loggers, save_path
 
     progress.append(EarlyStopping('map', mode='max'))
-    progress.append(YOLORichProgressBar())
-    progress.append(YOLORichModelSummary())
 
     return progress, loggers, save_path
 
