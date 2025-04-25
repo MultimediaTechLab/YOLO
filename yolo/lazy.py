@@ -71,15 +71,18 @@ def export_onnx(cfg: Config):
     else:
         raise RuntimeError('Could not find state_dict in checkpoint after training completed')
 
-    export_model_state_dict = {}
-    for model_key, model_weight in checkpoint_weights.items():
-        model_key = model_key.replace('model.model.', 'model.')
-        export_model_state_dict[model_key] = model_weight
-
     cfg.model.is_exporting    = True
     cfg.model.model.auxiliary = {}
     export_model = create_model(cfg.model, cfg=cfg, class_num=cfg.dataset.class_num, weight_path=False).to('cpu')
-    export_model.load_state_dict(export_model_state_dict, strict=False)
+
+    export_model_state_dict = {}
+    for model_key, model_weight in checkpoint_weights.items():
+        model_key = model_key.replace('model.model.', 'model.')
+        if model_key in export_model.state_dict():
+            export_model_state_dict[model_key] = model_weight
+
+    export_model.load_state_dict(export_model_state_dict, strict=True)
+    export_model.eval()
 
     dummy_input = torch.zeros((1, *cfg.image_size, 3))
     torch.onnx.export(
