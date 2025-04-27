@@ -56,6 +56,33 @@ These are simple examples. For more customization details, please refer to [Note
 
 ## Training
 
+### Dataset Format
+
+1. structure
+```
+{dataset1}
+├── images
+│   ├── test
+│   │   └── 1.jpg
+│   ├── train
+│   │   └── 2.jpg
+│   └── val
+│       └── 3.jpg
+└── labels
+    ├── test
+    │   └── 1.txt
+    ├── train
+    │   └── 2.txt
+    └── val
+        └── 3.txt
+```
+
+2. label format
+id is integer, coordinates are scaled to 0 ~ 1
+```
+id xmin ymin xmax ymax
+```
+
 To train YOLO on your machine/dataset:
 
 1. Modify the configuration file `yolo/config/dataset/**.yaml` to point to your dataset.

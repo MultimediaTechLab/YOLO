@@ -317,7 +317,6 @@ def log_model_structure(model: Union[ModuleList, YOLOLayer, YOLO]):
     console.print(table)
 
 
-@rank_zero_only
 def validate_log_directory(cfg: Config, exp_name: str) -> Path:
     base_path = Path(cfg.out_path, cfg.task.task)
     save_path = base_path / exp_name
