@@ -84,7 +84,7 @@ def export_onnx(cfg: Config):
     export_model.load_state_dict(export_model_state_dict, strict=True)
     export_model.eval()
 
-    dummy_input = torch.zeros((1, *cfg.image_size, 3))
+    dummy_input = torch.zeros((1, cfg.image_size[1], cfg.image_size[0], 3))
     torch.onnx.export(
         export_model,
         (dummy_input,),
