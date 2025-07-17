@@ -116,6 +116,35 @@ def scale_segmentation(
     return seg_array_with_cat
 
 
+def convert_bboxes(
+        annotations: list[list[float]],
+) -> list[list[float]]:
+    """
+    Converts annotations in YOLO detection format (class_id, cx, cy, w, h) or YOLO segmentation format \
+        (class_id, x1, y1, x2, y2, ..., xn, yn) to YOLO segmentation format.
+    
+    Args:
+        annotations (list[list[float]]): List of annotations in any YOLO format.
+    
+    Returns:
+        list[list[float]]: List of annotations in any YOLO segmentation format.
+    """
+    segmentation_data = []
+
+    for anno in annotations:
+        # YOLO segmentation format
+        if len(anno) > 5:
+            segmentation_data.append(anno)
+            continue
+        
+        # YOLO detection format
+        category_id, cx, cy, w, h = anno
+        x1, y1, x2, y2 = cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2
+        segmentation_data.append([category_id, x1, y1, x2, y1, x2, y2, x1, y2])
+    
+    return segmentation_data
+
+
 def tensorlize(data):
     try:
         img_paths, bboxes, img_ratios = zip(*data)
