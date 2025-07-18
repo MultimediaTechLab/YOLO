@@ -239,7 +239,6 @@ def setup_logger(logger_name, quite=False):
 class SimpleLogger(Logger):
     def __init__(self):
         self.epoch_number = 1
-        self.step_offset = 0
 
     @property
     def name(self) -> str:
@@ -255,11 +254,10 @@ class SimpleLogger(Logger):
             metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if ((('map' in metric) or ('mar' in metric)) and ('_per_class' not in metric.lower()))}
             print('Epoch %03d validation metrics: %s' % (self.epoch_number, metrics))
             self.epoch_number += 1
-            self.step_offset = step + 1
         else:
             # if training metrics
             metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if ('loss' in metric.lower())}
-            print('Epoch %03d step %05d train losses: %s' % (self.epoch_number, step - self.step_offset + 1, metrics))
+            print('Epoch %03d step %05d train losses: %s' % (self.epoch_number, step, metrics))
 
     def log_hyperparams(self, params, *args, **kwargs):
         pass
