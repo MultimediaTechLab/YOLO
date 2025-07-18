@@ -16,7 +16,6 @@ from yolo.model.yolo import create_model
 from yolo.tools.solver import BaseModel, InferenceModel, TrainModel, ValidateModel
 from yolo.utils.logging_utils import setup
 
-
 @hydra.main(config_path='config', config_name='config', version_base=None)
 def main(cfg: Config):
     if 'DATASET_OVERRIDE_CONFIG' in os.environ:
@@ -28,13 +27,14 @@ def main(cfg: Config):
         accelerator='auto',
         max_epochs=getattr(cfg.task, 'epoch', None),
         precision='16-mixed',
-        callbacks=callbacks,
         logger=loggers,
-        log_every_n_steps=1,
+        callbacks=callbacks,
+        num_sanity_val_steps=0,
+        log_every_n_steps=50,
         gradient_clip_val=10,
         gradient_clip_algorithm='value',
         deterministic=True,
-        enable_progress_bar=not getattr(cfg, 'quite', False),
+        enable_progress_bar=False,
         default_root_dir=save_path,
     )
 

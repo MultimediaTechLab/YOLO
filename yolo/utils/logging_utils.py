@@ -24,6 +24,7 @@ from lightning.pytorch.callbacks import Callback, EarlyStopping, RichModelSummar
 from lightning.pytorch.callbacks.progress.rich_progress import CustomProgress
 from lightning.pytorch.utilities import rank_zero_only
 from omegaconf import ListConfig
+from pytorch_lightning.loggers import Logger
 from rich import get_console, reconfigure
 from rich.console import Console, Group
 from rich.logging import RichHandler
@@ -36,7 +37,7 @@ from typing_extensions import override
 from yolo.config.config import Config, YOLOLayer
 from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
-from yolo.utils.model_utils import EMA
+from yolo.utils.model_utils import EMA, EpochLogger
 from yolo.utils.solver_utils import make_ap_table
 
 
@@ -235,15 +236,50 @@ def setup_logger(logger_name, quite=False):
     coco_logger.setLevel(logging.ERROR)
 
 
+class SimpleLogger(Logger):
+    def __init__(self):
+        self.epoch_number = 1
+
+    @property
+    def name(self) -> str:
+        return ""
+
+    @property
+    def version(self):
+        return ""
+
+    def log_metrics(self, metrics, step=None):
+        if 'map' in metrics:
+            # if validation metrics
+            metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if ((('map' in metric) or ('mar' in metric)) and ('_per_class' not in metric.lower()))}
+            print('Epoch %03d validation metrics: %s' % (self.epoch_number, metrics))
+            self.epoch_number += 1
+        else:
+            metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if ('loss' in metric.lower())}
+            if any([True for metric in metrics if ('_epoch' in metric.lower())]):
+                # if training epoch losses
+                print('Epoch %03d train losses: %s' % (self.epoch_number - 1, metrics))
+            else:
+                # if training step losses
+                print('Epoch %03d step %05d train losses: %s' % (self.epoch_number, step, metrics))
+
+    def log_hyperparams(self, params, *args, **kwargs):
+        pass
+
+
 def setup(cfg: Config):
     save_path = validate_log_directory(cfg, cfg.name)
 
-    progress, loggers = [], []
+    progress, loggers = [], [SimpleLogger()]
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
         progress.append(EMA(cfg.task.ema.decay))
 
     progress.append(EarlyStopping('map', mode='max', patience=5))
+    progress.append(EpochLogger())
+
+    coco_logger = logging.getLogger("faster_coco_eval.core.cocoeval")
+    coco_logger.setLevel(logging.FATAL)
 
     return progress, loggers, save_path
 
