@@ -94,6 +94,7 @@ class TrainModel(ValidateModel):
         self.log_dict(
             loss_item,
             prog_bar=True,
+            on_step=True,
             on_epoch=True,
             batch_size=batch_size,
             rank_zero_only=True,

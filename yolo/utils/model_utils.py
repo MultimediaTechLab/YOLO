@@ -1,4 +1,5 @@
 import os
+import time
 from copy import deepcopy
 from math import exp
 from pathlib import Path
@@ -59,10 +60,27 @@ class EMA(Callback):
 
     @no_grad()
     def on_train_batch_end(self, trainer: "Trainer", pl_module: "LightningModule", *args, **kwargs) -> None:
+        if self.ema_state_dict is None:
+            self.ema_state_dict = deepcopy(pl_module.model.state_dict())
         self.step += 1
         decay_factor = self.decay * (1 - exp(-self.step / self.tau))
         for key, param in pl_module.model.state_dict().items():
             self.ema_state_dict[key] = lerp(param.detach(), self.ema_state_dict[key], decay_factor)
+
+
+class EpochLogger(Callback):
+    def __init__(self):
+        super().__init__()
+        self.epoch_number = 1
+        self.t = 0
+
+    def on_train_epoch_start(self, trainer: "Trainer", pl_module: "LightningModule") -> None:
+        print('Starting epoch %d...' % self.epoch_number)
+        self.t = time.time()
+
+    def on_train_epoch_end(self, trainer: "Trainer", pl_module: "LightningModule") -> None:
+        print('Finished epoch %d in %d seconds' % (self.epoch_number, int(time.time() - self.t)))
+        self.epoch_number += 1
 
 
 def create_optimizer(model: YOLO, optim_cfg: OptimizerConfig) -> Optimizer:
