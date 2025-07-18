@@ -254,14 +254,14 @@ class SimpleLogger(Logger):
             metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if ((('map' in metric) or ('mar' in metric)) and ('_per_class' not in metric.lower()))}
             print('Epoch %03d validation metrics: %s' % (self.epoch_number, metrics))
             self.epoch_number += 1
-        elif any([True for metric in metrics if ('_epoch' in metric.lower())]):
-            # if training epoch losses
-            metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if (('loss' in metric.lower()) and ('_epoch' not in metric.lower()))}
-            print('Epoch %03d train losses: %s' % (self.epoch_number - 1, metrics))
         else:
-            # if training step losses
-            metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if (('loss' in metric.lower()) and ('_epoch' not in metric.lower()))}
-            print('Epoch %03d step %05d train losses: %s' % (self.epoch_number, step, metrics))
+            metrics = {metric: ('%.3f' % metrics[metric]) for metric in metrics if ('loss' in metric.lower())}
+            if any([True for metric in metrics if ('_epoch' in metric.lower())]):
+                # if training epoch losses
+                print('Epoch %03d train losses: %s' % (self.epoch_number - 1, metrics))
+            else:
+                # if training step losses
+                print('Epoch %03d step %05d train losses: %s' % (self.epoch_number, step, metrics))
 
     def log_hyperparams(self, params, *args, **kwargs):
         pass
