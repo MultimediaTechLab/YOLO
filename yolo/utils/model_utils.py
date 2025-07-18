@@ -75,7 +75,6 @@ class EpochLogger(Callback):
         self.t = 0
 
     def on_train_epoch_start(self, trainer: "Trainer", pl_module: "LightningModule") -> None:
-        print('Starting epoch %d...' % self.epoch_number)
         self.t = time.time()
 
     def on_train_epoch_end(self, trainer: "Trainer", pl_module: "LightningModule") -> None:
