@@ -275,7 +275,7 @@ def setup(cfg: Config):
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
         progress.append(EMA(cfg.task.ema.decay))
 
-    progress.append(EarlyStopping('map', mode='max', patience=5))
+    progress.append(EarlyStopping('Loss/BoxLoss_epoch', mode='min', patience=5))
     progress.append(EpochLogger())
 
     coco_logger = logging.getLogger("faster_coco_eval.core.cocoeval")
