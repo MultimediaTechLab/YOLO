@@ -8,7 +8,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from yolo.config.config import Config
-from yolo.tools.solver import InferenceModel, TrainModel, ValidateModel
+from yolo.tools.solver import ExportModel, InferenceModel, TrainModel, ValidateModel
 from yolo.utils.logging_utils import setup
 
 
@@ -39,6 +39,9 @@ def main(cfg: Config):
     if cfg.task.task == "inference":
         model = InferenceModel(cfg)
         trainer.predict(model)
+    if cfg.task.task == "export":
+        model = ExportModel(cfg)
+        model.export()
 
 
 if __name__ == "__main__":
