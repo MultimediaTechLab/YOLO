@@ -10,6 +10,7 @@ from yolo.utils.logging_utils import (
     YOLORichModelSummary,
     YOLORichProgressBar,
 )
+from yolo.utils.model_utils import prediction_to_sv
 from yolo.utils.model_utils import PostProcess
 
 all = [
@@ -30,4 +31,5 @@ all = [
     "FastModelLoader",
     "TrainModel",
     "PostProcess",
+    "prediction_to_sv",
 ]
