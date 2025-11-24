@@ -61,7 +61,7 @@ jobs:
       run: |
         python yolo/lazy.py task=inference use_wandb=False
         python yolo/lazy.py task=inference use_wandb=False model=v7
-        python yolo/lazy.py task=inference use_wandb=False +quite=True
+        python yolo/lazy.py task=inference use_wandb=False +quiet=True
         python yolo/lazy.py task=inference use_wandb=False name=AnyNameYouWant
         python yolo/lazy.py task=inference use_wandb=False image_size=\[480,640]
         python yolo/lazy.py task=inference use_wandb=False task.nms.min_confidence=0.1

@@ -238,7 +238,7 @@ class ImageLogger(Callback):
                 logger.log_image("Prediction", images, step=step, boxes=[log_bbox(pred_boxes)])
 
 
-def setup_logger(logger_name, quite=False):
+def setup_logger(logger_name, quiet=False):
     class EmojiFormatter(logging.Formatter):
         def format(self, record, emoji=":high_voltage:"):
             return f"{emoji} {super().format(record)}"
@@ -249,7 +249,7 @@ def setup_logger(logger_name, quite=False):
     if rich_logger:
         rich_logger.handlers.clear()
         rich_logger.addHandler(rich_handler)
-        if quite:
+        if quiet:
             rich_logger.setLevel(logging.ERROR)
 
     coco_logger = logging.getLogger("faster_coco_eval.core.cocoeval")
@@ -257,9 +257,9 @@ def setup_logger(logger_name, quite=False):
 
 
 def setup(cfg: Config):
-    quite = hasattr(cfg, "quite")
-    setup_logger("lightning.fabric", quite=quite)
-    setup_logger("lightning.pytorch", quite=quite)
+    quiet = hasattr(cfg, "quiet")
+    setup_logger("lightning.fabric", quiet=quiet)
+    setup_logger("lightning.pytorch", quiet=quiet)
 
     def custom_wandb_log(string="", level=int, newline=True, repeat=True, prefix=True, silent=False):
         if silent:
@@ -275,7 +275,7 @@ def setup(cfg: Config):
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
         progress.append(EMA(cfg.task.ema.decay))
-    if quite:
+    if quiet:
         logger.setLevel(logging.ERROR)
         return progress, loggers, save_path
 
@@ -336,7 +336,7 @@ def validate_log_directory(cfg: Config, exp_name: str) -> Path:
             )
 
     save_path.mkdir(parents=True, exist_ok=True)
-    if not getattr(cfg, "quite", False):
+    if not getattr(cfg, "quiet", False):
         logger.info(f"📄 Created log folder: [blue b u]{save_path}[/]")
     logger.addHandler(FileHandler(save_path / "output.log"))
     return save_path

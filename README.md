@@ -87,7 +87,7 @@ python yolo/lazy.py task=inference \ # default is inference
                     task.nms.min_confidence=0.1 \ # nms config
                     task.fast_inference=onnx \ # onnx, trt, deploy
                     task.data.source=data/toy/images/train \ # file, dir, webcam
-                    +quite=True \ # Quite Output
+                    +quiet=True \ # Quiet Output
 yolo task.data.source={Any Source} # if pip installed
 yolo task=inference task.data.source={Any}
 ```
