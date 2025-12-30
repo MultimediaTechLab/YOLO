@@ -60,6 +60,7 @@ class DataConfig:
     data_augment: Dict[str, int]
     source: Optional[Union[str, int]]
     dynamic_shape: Optional[bool]
+    equivalent_batch_size: Optional[int] = 64
 
 
 @dataclass

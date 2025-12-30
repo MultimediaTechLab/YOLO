@@ -7,6 +7,7 @@ epoch: 500
 
 data:
   batch_size: 16
+  equivalent_batch_size: 64
   image_size: ${image_size}
   cpu_num: ${cpu_num}
   shuffle: True

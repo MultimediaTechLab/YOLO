@@ -38,7 +38,7 @@ from typing_extensions import override
 from yolo.config.config import Config, YOLOLayer
 from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
-from yolo.utils.model_utils import EMA
+from yolo.utils.model_utils import EMA, GradientAccumulation
 from yolo.utils.solver_utils import make_ap_table
 
 
@@ -68,7 +68,6 @@ class YOLORichProgressBar(RichProgressBar):
             self._reset_progress_bar_ids()
             reconfigure(**self._console_kwargs)
             self._console = Console()
-            self._console.clear_live()
             self.progress = YOLOCustomProgress(
                 *self.configure_columns(trainer),
                 auto_refresh=False,
@@ -105,7 +104,7 @@ class YOLORichProgressBar(RichProgressBar):
         self._update(self.train_progress_bar_id, batch_idx + 1)
         self._update_metrics(trainer, pl_module)
         epoch_descript = "[cyan]Train [white]|"
-        batch_descript = "[green]Train [white]|"
+        batch_descript = "[green]Batch [white]|"
         metrics = self.get_metrics(trainer, pl_module)
         metrics.pop("v_num")
         for metrics_name, metrics_val in metrics.items():
@@ -272,6 +271,9 @@ def setup(cfg: Config):
     save_path = validate_log_directory(cfg, cfg.name)
 
     progress, loggers = [], []
+
+    if cfg.task.task == "train" and hasattr(cfg.task.data, "equivalent_batch_size"):
+        progress.append(GradientAccumulation(data_cfg=cfg.task.data, scheduler_cfg=cfg.task.scheduler))
 
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
         progress.append(EMA(cfg.task.ema.decay))

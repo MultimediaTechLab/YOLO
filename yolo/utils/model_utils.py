@@ -13,7 +13,13 @@ from torch import Tensor, no_grad
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR, SequentialLR, _LRScheduler
 
-from yolo.config.config import IDX_TO_ID, NMSConfig, OptimizerConfig, SchedulerConfig
+from yolo.config.config import (
+    IDX_TO_ID,
+    DataConfig,
+    NMSConfig,
+    OptimizerConfig,
+    SchedulerConfig,
+)
 from yolo.model.yolo import YOLO
 from yolo.utils.bounding_box_utils import Anc2Box, Vec2Box, bbox_nms, transform_bbox
 from yolo.utils.logger import logger
@@ -44,6 +50,7 @@ class EMA(Callback):
         self.decay = decay
         self.tau = tau
         self.step = 0
+        self.batch_step_counter = 0
         self.ema_state_dict = None
 
     def setup(self, trainer, pl_module, stage):
@@ -53,16 +60,51 @@ class EMA(Callback):
             param.requires_grad = False
 
     def on_validation_start(self, trainer: "Trainer", pl_module: "LightningModule"):
+        self.batch_step_counter = 0
         if self.ema_state_dict is None:
             self.ema_state_dict = deepcopy(pl_module.model.state_dict())
         pl_module.ema.load_state_dict(self.ema_state_dict)
 
     @no_grad()
     def on_train_batch_end(self, trainer: "Trainer", pl_module: "LightningModule", *args, **kwargs) -> None:
+        self.batch_step_counter += 1
+        if self.batch_step_counter % trainer.accumulate_grad_batches:
+            return
         self.step += 1
         decay_factor = self.decay * (1 - exp(-self.step / self.tau))
         for key, param in pl_module.model.state_dict().items():
             self.ema_state_dict[key] = lerp(param.detach(), self.ema_state_dict[key], decay_factor)
+
+
+class GradientAccumulation(Callback):
+    def __init__(self, data_cfg: DataConfig, scheduler_cfg: SchedulerConfig):
+        super().__init__()
+        self.equivalent_batch_size = data_cfg.equivalent_batch_size
+        self.actual_batch_size = data_cfg.batch_size
+        self.warmup_epochs = getattr(scheduler_cfg.warmup, "epochs", 0)
+        self.current_batch = 0
+        self.max_accumulation = 1
+        self.warmup_batches = 0
+        logger.info(":arrows_counterclockwise: Enable Gradient Accumulation")
+
+    def setup(self, trainer: "Trainer", pl_module: "LightningModule", stage: str) -> None:
+        effective_batch_size = self.actual_batch_size * trainer.world_size
+        self.max_accumulation = max(1, round(self.equivalent_batch_size / effective_batch_size))
+        batches_per_epoch = int(len(pl_module.train_loader) / trainer.world_size)
+        self.warmup_batches = int(self.warmup_epochs * batches_per_epoch)
+
+    def on_train_epoch_start(self, trainer: "Trainer", pl_module: "LightningModule") -> None:
+        self.current_batch = trainer.global_step
+
+    def on_train_batch_start(self, trainer: "Trainer", pl_module: "LightningModule", *args, **kwargs) -> None:
+        if self.current_batch < self.warmup_batches:
+            current_accumulation = round(lerp(1, self.max_accumulation, self.current_batch, self.warmup_batches))
+        else:
+            current_accumulation = self.max_accumulation
+        trainer.accumulate_grad_batches = current_accumulation
+
+    def on_train_batch_end(self, trainer: "Trainer", pl_module: "LightningModule", *args, **kwargs) -> None:
+        self.current_batch += 1
 
 
 def create_optimizer(model: YOLO, optim_cfg: OptimizerConfig) -> Optimizer:
