@@ -10,13 +10,18 @@ from yolo.tools.data_loader import create_dataloader
 from yolo.tools.drawer import draw_bboxes
 from yolo.tools.loss_functions import create_loss_function
 from yolo.utils.bounding_box_utils import create_converter, to_metrics_format
+from yolo.utils.deploy_utils import FastModelLoader
+from yolo.utils.export_utils import ModelExporter
+from yolo.utils.logger import logger
 from yolo.utils.model_utils import PostProcess, create_optimizer, create_scheduler
 
 
 class BaseModel(LightningModule):
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, export_mode: bool = False):
         super().__init__()
-        self.model = create_model(cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight)
+        self.model = create_model(
+            cfg.model, class_num=cfg.dataset.class_num, weight_path=cfg.weight, export_mode=export_mode
+        )
 
     def forward(self, x):
         return self.model(x)
@@ -109,15 +114,27 @@ class TrainModel(ValidateModel):
 
 class InferenceModel(BaseModel):
     def __init__(self, cfg: Config):
-        super().__init__(cfg)
+        if hasattr(cfg.model.model, "auxiliary"):
+            cfg.model.model.auxiliary = {}
+
+        export_mode = False
+        fast_inference = cfg.task.fast_inference
+        # TODO check if we can use export mode for all formats
+        if fast_inference == "coreml":
+            export_mode = True
+
+        super().__init__(cfg, export_mode=export_mode)
         self.cfg = cfg
-        # TODO: Add FastModel
         self.predict_loader = create_dataloader(cfg.task.data, cfg.dataset, cfg.task.task)
 
     def setup(self, stage):
         self.vec2box = create_converter(
             self.cfg.model.name, self.model, self.cfg.model.anchor, self.cfg.image_size, self.device
         )
+
+        if self.cfg.task.fast_inference:
+            self.fast_model = FastModelLoader(self.cfg, self.model).load_model(self.device)
+
         self.post_process = PostProcess(self.vec2box, self.cfg.task.nms)
 
     def predict_dataloader(self):
@@ -125,7 +142,11 @@ class InferenceModel(BaseModel):
 
     def predict_step(self, batch, batch_idx):
         images, rev_tensor, origin_frame = batch
-        predicts = self.post_process(self(images), rev_tensor=rev_tensor)
+        if hasattr(self, "fast_model") and self.fast_model:
+            predictions = self.fast_model(images)
+        else:
+            predictions = self(images)
+        predicts = self.post_process(predictions, rev_tensor=rev_tensor)
         img = draw_bboxes(origin_frame, predicts, idx2label=self.cfg.dataset.class_list)
         if getattr(self.predict_loader, "is_stream", None):
             fps = self._display_stream(img)
@@ -139,3 +160,28 @@ class InferenceModel(BaseModel):
         save_image_path = Path(self.trainer.default_root_dir) / f"frame{batch_idx:03d}.png"
         img.save(save_image_path)
         print(f"💾 Saved visualize image at {save_image_path}")
+
+
+class ExportModel(BaseModel):
+    def __init__(self, cfg: Config):
+        if hasattr(cfg.model.model, "auxiliary"):
+            cfg.model.model.auxiliary = {}
+
+        export_mode = False
+        format = cfg.task.format
+        # TODO check if we can use export mode for all formats
+        if self.format == "coreml":
+            export_mode = True
+
+        super().__init__(cfg, export_mode=export_mode)
+        self.cfg = cfg
+        self.format = format
+        self.model_exporter = ModelExporter(self.cfg, self.model, format=self.format)
+
+    def export(self):
+        if self.format == "onnx":
+            self.model_exporter.export_onnx()
+        if self.format == "tflite":
+            self.model_exporter.export_tflite()
+        if self.format == "coreml":
+            self.model_exporter.export_coreml()
