@@ -2,12 +2,10 @@
 
 [![Documentation Status](https://readthedocs.org/projects/yolo-docs/badge/?version=latest)](https://yolo-docs.readthedocs.io/en/latest/?badge=latest)
 ![GitHub License](https://img.shields.io/github/license/WongKinYiu/YOLO)
-![WIP](https://img.shields.io/badge/status-WIP-orange)
 
 [![Developer Mode Build & Test](https://github.com/WongKinYiu/YOLO/actions/workflows/develop.yaml/badge.svg)](https://github.com/WongKinYiu/YOLO/actions/workflows/develop.yaml)
 [![Deploy Mode Validation & Inference](https://github.com/WongKinYiu/YOLO/actions/workflows/deploy.yaml/badge.svg)](https://github.com/WongKinYiu/YOLO/actions/workflows/deploy.yaml)
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/yolov9-learning-what-you-want-to-learn-using/real-time-object-detection-on-coco)](https://paperswithcode.com/sota/real-time-object-detection-on-coco)
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()
 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-green)](https://huggingface.co/spaces/henry000/YOLO)
@@ -87,7 +85,7 @@ python yolo/lazy.py task=inference \ # default is inference
                     task.nms.min_confidence=0.1 \ # nms config
                     task.fast_inference=onnx \ # onnx, trt, deploy
                     task.data.source=data/toy/images/train \ # file, dir, webcam
-                    +quite=True \ # Quite Output
+                    +quiet=True \ # Quiet Output
 yolo task.data.source={Any Source} # if pip installed
 yolo task=inference task.data.source={Any}
 ```

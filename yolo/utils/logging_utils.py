@@ -38,7 +38,7 @@ from typing_extensions import override
 from yolo.config.config import Config, YOLOLayer
 from yolo.model.yolo import YOLO
 from yolo.utils.logger import logger
-from yolo.utils.model_utils import EMA
+from yolo.utils.model_utils import EMA, GradientAccumulation
 from yolo.utils.solver_utils import make_ap_table
 
 
@@ -68,7 +68,6 @@ class YOLORichProgressBar(RichProgressBar):
             self._reset_progress_bar_ids()
             reconfigure(**self._console_kwargs)
             self._console = Console()
-            self._console.clear_live()
             self.progress = YOLOCustomProgress(
                 *self.configure_columns(trainer),
                 auto_refresh=False,
@@ -105,7 +104,7 @@ class YOLORichProgressBar(RichProgressBar):
         self._update(self.train_progress_bar_id, batch_idx + 1)
         self._update_metrics(trainer, pl_module)
         epoch_descript = "[cyan]Train [white]|"
-        batch_descript = "[green]Train [white]|"
+        batch_descript = "[green]Batch [white]|"
         metrics = self.get_metrics(trainer, pl_module)
         metrics.pop("v_num")
         for metrics_name, metrics_val in metrics.items():
@@ -238,7 +237,7 @@ class ImageLogger(Callback):
                 logger.log_image("Prediction", images, step=step, boxes=[log_bbox(pred_boxes)])
 
 
-def setup_logger(logger_name, quite=False):
+def setup_logger(logger_name, quiet=False):
     class EmojiFormatter(logging.Formatter):
         def format(self, record, emoji=":high_voltage:"):
             return f"{emoji} {super().format(record)}"
@@ -249,7 +248,7 @@ def setup_logger(logger_name, quite=False):
     if rich_logger:
         rich_logger.handlers.clear()
         rich_logger.addHandler(rich_handler)
-        if quite:
+        if quiet:
             rich_logger.setLevel(logging.ERROR)
 
     coco_logger = logging.getLogger("faster_coco_eval.core.cocoeval")
@@ -257,9 +256,9 @@ def setup_logger(logger_name, quite=False):
 
 
 def setup(cfg: Config):
-    quite = hasattr(cfg, "quite")
-    setup_logger("lightning.fabric", quite=quite)
-    setup_logger("lightning.pytorch", quite=quite)
+    quiet = hasattr(cfg, "quiet")
+    setup_logger("lightning.fabric", quiet=quiet)
+    setup_logger("lightning.pytorch", quiet=quiet)
 
     def custom_wandb_log(string="", level=int, newline=True, repeat=True, prefix=True, silent=False):
         if silent:
@@ -273,9 +272,12 @@ def setup(cfg: Config):
 
     progress, loggers = [], []
 
+    if cfg.task.task == "train" and hasattr(cfg.task.data, "equivalent_batch_size"):
+        progress.append(GradientAccumulation(data_cfg=cfg.task.data, scheduler_cfg=cfg.task.scheduler))
+
     if hasattr(cfg.task, "ema") and cfg.task.ema.enable:
         progress.append(EMA(cfg.task.ema.decay))
-    if quite:
+    if quiet:
         logger.setLevel(logging.ERROR)
         return progress, loggers, save_path
 
@@ -336,7 +338,7 @@ def validate_log_directory(cfg: Config, exp_name: str) -> Path:
             )
 
     save_path.mkdir(parents=True, exist_ok=True)
-    if not getattr(cfg, "quite", False):
+    if not getattr(cfg, "quiet", False):
         logger.info(f"📄 Created log folder: [blue b u]{save_path}[/]")
     logger.addHandler(FileHandler(save_path / "output.log"))
     return save_path

@@ -17,7 +17,7 @@ python yolo/lazy.py task=validation dataset=toy name=validation
 # Inference
 python yolo/lazy.py task=inference
 python yolo/lazy.py task=inference device=cpu
-python yolo/lazy.py task=inference +quite=True
+python yolo/lazy.py task=inference +quiet=True
 python yolo/lazy.py task=inference name=AnyNameYouWant
 python yolo/lazy.py task=inference image_size=\[480,640]
 python yolo/lazy.py task=inference task.nms.min_confidence=0.1
