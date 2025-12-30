@@ -65,8 +65,9 @@ class TestGradientAccumulation:
     def scheduler_cfg_without_warmup(self):
         """Create a mock SchedulerConfig without warmup."""
         cfg = Mock(spec=SchedulerConfig)
-        # Create a warmup object without epochs attribute
-        warmup = Mock(spec=[])  # Empty spec means no attributes
+        # Create a warmup object without epochs attribute to simulate missing warmup config
+        warmup = Mock()
+        del warmup.epochs
         cfg.warmup = warmup
         return cfg
 
@@ -203,8 +204,9 @@ class TestGradientAccumulation:
         # At batch 150 (50% through warmup), should be halfway
         # lerp(1, 4, 150, 300) = 1 + (4-1) * 150/300 = 1 + 1.5 = 2.5 -> round to 2 or 3
         callback.current_batch = 150
+        expected_accumulation = round(lerp(1, 4, 150, 300))
         callback.on_train_batch_start(mock_trainer, mock_pl_module)
-        assert mock_trainer.accumulate_grad_batches == round(1 + (4-1) * 150/300)
+        assert mock_trainer.accumulate_grad_batches == expected_accumulation
         
         # At batch 225 (75% through warmup)
         # lerp(1, 4, 225, 300) = 1 + (4-1) * 225/300 = 1 + 2.25 = 3.25 -> round to 3
