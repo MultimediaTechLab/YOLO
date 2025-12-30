@@ -28,7 +28,7 @@ def main(cfg: Config):
         gradient_clip_val=10,
         gradient_clip_algorithm="norm",
         deterministic=True,
-        enable_progress_bar=not getattr(cfg, "quite", False),
+        enable_progress_bar=not getattr(cfg, "quiet", False),
         default_root_dir=save_path,
     )
 
