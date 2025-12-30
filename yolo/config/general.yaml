@@ -1,3 +1,4 @@
+accelerator: auto
 device: 0
 cpu_num: 16
 

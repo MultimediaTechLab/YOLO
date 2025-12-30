@@ -17,10 +17,12 @@ def main(cfg: Config):
     callbacks, loggers, save_path = setup(cfg)
 
     trainer = Trainer(
-        accelerator="auto",
+        accelerator=getattr(cfg, "accelerator", "auto"),
+        devices=cfg.device,
         max_epochs=getattr(cfg.task, "epoch", None),
         precision="16-mixed",
         callbacks=callbacks,
+        sync_batchnorm=True,
         logger=loggers,
         log_every_n_steps=1,
         gradient_clip_val=10,

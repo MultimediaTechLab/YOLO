@@ -145,6 +145,7 @@ class Config:
     model: ModelConfig
     name: str
 
+    accelerator: Optional[str]
     device: Union[str, int, List[int]]
     cpu_num: int
 
