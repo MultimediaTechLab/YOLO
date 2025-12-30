@@ -118,7 +118,7 @@ def test_vec2box_autoanchor():
     with initialize(config_path="../../yolo/config", version_base=None):
         cfg: Config = compose(config_name="config", overrides=["model=v9-m"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = create_model(cfg.model, weight_path=None).to(device)
+    model = create_model(cfg.model, weight_path=None)
     vec2box = Vec2Box(model, cfg.model.anchor, cfg.image_size, device)
     assert vec2box.strides == [8, 16, 32]
 

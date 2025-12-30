@@ -1,5 +1,5 @@
 accelerator: auto
-device: 0
+device: auto
 cpu_num: 16
 
 image_size: [640, 640]
