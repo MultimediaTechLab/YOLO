@@ -1,9 +1,8 @@
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
-import torch
 
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
